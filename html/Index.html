@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <?!= include('css/Styles'); ?>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Google Workspace</p>
+          <h1><?= AppUtils.escapeHtml(bootstrap.app.name) ?></h1>
+        </div>
+        <span class="status" aria-label="Application status ready">Ready</span>
+      </header>
+      <section class="card" aria-labelledby="workspace-title">
+        <h2 id="workspace-title">Workspace</h2>
+        <dl>
+          <div><dt>Spreadsheet</dt><dd><?= AppUtils.escapeHtml(bootstrap.spreadsheet.name) ?></dd></div>
+          <div><dt>Version</dt><dd><?= AppUtils.escapeHtml(bootstrap.app.version) ?></dd></div>
+          <div><dt>Signed in</dt><dd><?= AppUtils.escapeHtml(bootstrap.user.email || 'Workspace user') ?></dd></div>
+        </dl>
+        <a class="button" href="<?= AppUtils.escapeHtml(bootstrap.spreadsheet.url) ?>">Open spreadsheet</a>
+      </section>
+      <p class="footer">PocketPiano ERP · v<?= AppUtils.escapeHtml(bootstrap.app.version) ?></p>
+    </main>
+  </body>
+</html>

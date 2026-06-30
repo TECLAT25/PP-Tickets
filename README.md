@@ -1,12 +1,23 @@
 # PocketPiano ERP
 
-Proyecto para gestionar soporte, clientes, productos, garantías y producción de PocketPiano mediante Google Workspace.
+Production-oriented Google Apps Script foundation for PocketPiano support, customers, products, warranties, and operations across Google Workspace.
 
-## Roadmap
+## Platform
 
-- Sprint 1: Base del proyecto
-- Sprint 2: Soporte (tickets Gmail)
-- Sprint 3: Dashboard
-- Sprint 4: Productos y garantías
-- Sprint 5: Reparaciones
-- Sprint 6: IA
+- Google Apps Script V8
+- Google Sheets persistence
+- Gmail labels and read access
+- Google Drive resource storage
+- HTMLService spreadsheet and web UI
+
+## Repository
+
+- `src/` — application modules
+- `html/` — HTMLService views
+- `css/` — HTMLService style partials
+- `docs/` — architecture and deployment guidance
+- `appsscript.json` — runtime, scopes, and web app manifest
+
+Run `install()` from a spreadsheet-bound Apps Script project. It creates and validates the complete workbook schema without deleting existing business data.
+
+See [installation](docs/INSTALLATION.md) and [architecture](docs/ARCHITECTURE.md) for operational details.
