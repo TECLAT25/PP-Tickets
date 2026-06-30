@@ -1,0 +1,11 @@
+{
+  "name": "pocketpiano-erp",
+  "version": "1.1.0",
+  "private": true,
+  "scripts": {
+    "test": "node tests/gmailSync.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

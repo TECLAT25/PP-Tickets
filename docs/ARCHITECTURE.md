@@ -11,6 +11,8 @@ PocketPiano ERP is a spreadsheet-bound Google Apps Script application using the 
 - `triggers.gs`: managed trigger lifecycle and bounded maintenance jobs.
 - `utils.gs`: domain errors, safe serialization, structured logging, and HTML helpers.
 - `version.gs`: semantic application version.
+- `gmail.gs`: injected synchronization engine and Apps Script Gmail gateway.
+- `repositories.gs`: Sheets repositories and idempotent Drive attachment storage.
 - `html/` and `css/`: HTMLService application shell and styles.
 
 ## Persistence
@@ -27,6 +29,8 @@ The installer is non-destructive and idempotent. It creates missing sheets and c
 - OAuth scopes are explicit in `appsscript.json`.
 - HTML values are escaped before templated rendering.
 - Managed triggers are identified by handler name and never modify unrelated triggers.
+- Gmail synchronization runs under a script lock, stores immutable Gmail IDs, and labels a thread only after successful persistence.
+- Attachment filenames include the Gmail message ID and ordinal, making retries idempotent.
 
 ## Versioning
 

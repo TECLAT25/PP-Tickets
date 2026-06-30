@@ -5,22 +5,42 @@ class TriggerManager {
    * @return {GoogleAppsScript.Script.Trigger}
    */
   static ensureMaintenanceTrigger() {
-    const handler = 'scheduledMaintenance';
-    const existing = ScriptApp.getProjectTriggers().filter(function(trigger) {
-      return trigger.getHandlerFunction() === handler;
+    return TriggerManager.ensureTimeTrigger_('scheduledMaintenance', function() {
+      return ScriptApp.newTrigger('scheduledMaintenance').timeBased().everyDays(1).atHour(3).create();
     });
-    return existing.length ? existing[0] :
-      ScriptApp.newTrigger(handler).timeBased().everyDays(1).atHour(3).create();
+  }
+
+  /**
+   * Creates one five-minute Gmail synchronization trigger if absent.
+   * @return {GoogleAppsScript.Script.Trigger}
+   */
+  static ensureGmailSyncTrigger() {
+    return TriggerManager.ensureTimeTrigger_('syncGmail', function() {
+      return ScriptApp.newTrigger('syncGmail').timeBased().everyMinutes(5).create();
+    });
   }
 
   /** Removes only triggers managed by this application. */
   static removeManagedTriggers() {
-    const managedHandlers = ['scheduledMaintenance'];
+    const managedHandlers = ['scheduledMaintenance', 'syncGmail'];
     ScriptApp.getProjectTriggers().forEach(function(trigger) {
       if (managedHandlers.indexOf(trigger.getHandlerFunction()) !== -1) {
         ScriptApp.deleteTrigger(trigger);
       }
     });
+  }
+
+  /**
+   * @param {string} handler
+   * @param {function(): GoogleAppsScript.Script.Trigger} factory
+   * @return {GoogleAppsScript.Script.Trigger}
+   * @private
+   */
+  static ensureTimeTrigger_(handler, factory) {
+    const existing = ScriptApp.getProjectTriggers().filter(function(trigger) {
+      return trigger.getHandlerFunction() === handler;
+    });
+    return existing.length ? existing[0] : factory();
   }
 }
 
