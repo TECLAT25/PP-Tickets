@@ -1,7 +1,7 @@
 /** Immutable application constants. @const */
 const APP = Object.freeze({
   NAME: 'PocketPiano ERP',
-  VERSION: '1.1.0',
+  VERSION: '1.2.0',
   LOCK_TIMEOUT_MS: 30000,
   LOG_RETENTION_DAYS: 90,
   PROPERTY_KEYS: Object.freeze({
@@ -32,7 +32,7 @@ const SHEET_SCHEMAS = Object.freeze([
   Object.freeze({name: 'Tickets', headers: Object.freeze([
     'Ticket ID', 'Status', 'Priority', 'Subject', 'Customer ID', 'Customer Email',
     'Gmail Thread ID', 'Assigned To', 'Created At', 'Updated At', 'Last Message At',
-    'SLA Due At', 'Drive Folder ID', 'Tags', 'Version'
+    'SLA Due At', 'Drive Folder ID', 'Tags', 'Version', 'Category'
   ]), color: '#D93025'}),
   Object.freeze({name: 'Messages', headers: Object.freeze([
     'Message ID', 'Ticket ID', 'Gmail Message ID', 'Direction', 'From', 'To', 'Cc',
@@ -66,5 +66,9 @@ const DEFAULT_SETTINGS = Object.freeze([
   Object.freeze(['DEFAULT_LOCALE', 'es', 'Default template locale']),
   Object.freeze(['DEFAULT_TIME_ZONE', 'Europe/Madrid', 'Application time zone']),
   Object.freeze(['LOG_LEVEL', 'INFO', 'Minimum operational log level']),
-  Object.freeze(['SLA_HOURS', '48', 'Default response target in hours'])
+  Object.freeze(['TICKET_NUMBER_PREFIX', 'PP', 'Prefix for human-readable ticket numbers']),
+  Object.freeze(['SLA_LOW_HOURS', '72', 'Response target for low-priority tickets']),
+  Object.freeze(['SLA_NORMAL_HOURS', '48', 'Response target for normal-priority tickets']),
+  Object.freeze(['SLA_HIGH_HOURS', '12', 'Response target for high-priority tickets']),
+  Object.freeze(['SLA_CRITICAL_HOURS', '4', 'Response target for critical tickets'])
 ]);

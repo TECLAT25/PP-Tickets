@@ -20,6 +20,8 @@ Production-oriented Google Apps Script foundation for PocketPiano support, custo
 
 Run `install()` from a spreadsheet-bound Apps Script project. It creates and validates the complete workbook schema without deleting existing business data.
 
+Use the Ticket Manager server API for numbered tickets, lifecycle updates, SLA tracking, search, filters, and Dashboard metrics.
+
 Run `syncGmail()` manually or install `TriggerManager.ensureGmailSyncTrigger()` to synchronize the configured support mailbox.
 
-See [installation](docs/INSTALLATION.md), [Gmail synchronization](docs/GMAIL_SYNC.md), and [architecture](docs/ARCHITECTURE.md) for operational details.
+See [installation](docs/INSTALLATION.md), [Gmail synchronization](docs/GMAIL_SYNC.md), [Ticket Manager](docs/TICKET_MANAGER.md), and [architecture](docs/ARCHITECTURE.md) for operational details.

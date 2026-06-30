@@ -292,7 +292,7 @@ function syncGmail() {
       messageRepository: new SheetMessageRepository(),
       attachmentStore: new DriveAttachmentStore(),
       settings: new GmailSyncSettings(),
-      idGenerator: AppUtils.uuid,
+      idGenerator: function() { return TicketNumberService.nextUnlocked_(); },
       clock: function() { return new Date(); },
       logger: AppLogger,
       version: APP_VERSION

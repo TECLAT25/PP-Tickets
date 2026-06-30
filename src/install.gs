@@ -82,12 +82,20 @@ class AppInstaller {
       .setHorizontalAlignment('left');
     sheet.setFrozenRows(1);
     sheet.setTabColor(schema.color);
-    if (!sheet.getFilter()) {
-      sheet.getRange(1, 1, sheet.getMaxRows(), columnCount).createFilter();
+    const tableRange = sheet.getRange(1, 1, sheet.getMaxRows(), columnCount);
+    const filter = sheet.getFilter();
+    if (filter && filter.getRange().getNumColumns() !== columnCount) {
+      filter.remove();
     }
-    if (sheet.getBandings().length === 0 && sheet.getMaxRows() > 1) {
-      sheet.getRange(2, 1, sheet.getMaxRows() - 1, columnCount)
-        .applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY, false, false);
+    if (!sheet.getFilter()) {
+      tableRange.createFilter();
+    }
+    const dataRange = sheet.getRange(2, 1, sheet.getMaxRows() - 1, columnCount);
+    const bandings = sheet.getBandings();
+    if (bandings.length === 0 && sheet.getMaxRows() > 1) {
+      dataRange.applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY, false, false);
+    } else if (bandings.length > 0) {
+      bandings[0].setRange(dataRange);
     }
     sheet.autoResizeColumns(1, columnCount);
   }
@@ -141,17 +149,12 @@ class AppInstaller {
    * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} spreadsheet
    */
   static refreshDashboard_(spreadsheet) {
-    const sheet = spreadsheet.getSheetByName(APP.SHEETS.DASHBOARD);
-    const now = new Date();
-    const metrics = [
-      ['Application Version', APP_VERSION, now],
-      ['Installation Status', 'READY', now],
-      ['Spreadsheet ID', spreadsheet.getId(), now]
-    ];
-    if (sheet.getLastRow() > 1) {
-      sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).clearContent();
-    }
-    sheet.getRange(2, 1, metrics.length, metrics[0].length).setValues(metrics);
+    const repository = new SheetTicketRepository();
+    new TicketDashboardService(
+      repository,
+      spreadsheet.getSheetByName(APP.SHEETS.DASHBOARD),
+      function() { return new Date(); }
+    ).refresh();
   }
 }
 
