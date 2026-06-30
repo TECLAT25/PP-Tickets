@@ -14,7 +14,8 @@ PocketPiano ERP is a spreadsheet-bound Google Apps Script application using the 
 - `gmail.gs`: injected synchronization engine and Apps Script Gmail gateway.
 - `repositories.gs`: header-aware Sheets repositories, ticket search, and idempotent Drive attachment storage.
 - `tickets.gs`: numbering, lifecycle policy, SLA calculations, search API, and dashboard metrics.
-- `html/` and `css/`: HTMLService application shell and styles.
+- `ui.gs` and `uiRepositories.gs`: serialized HTMLService read API for tickets, conversations, customers, and metrics.
+- `html/` and `css/`: responsive Material-style application shell, client controller, and theme tokens.
 
 ## Persistence
 

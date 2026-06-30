@@ -134,6 +134,7 @@ class GmailSyncEngine {
         subject: message.subject || '',
         sentAt: new Date(message.date),
         bodyPreview: GmailSyncEngine.preview_(message.plainBody),
+        bodyText: GmailSyncEngine.bodyText_(message.plainBody),
         attachmentCount: stored.count,
         driveFolderId: stored.folderId || '',
         createdAt: this.clock_()
@@ -186,6 +187,11 @@ class GmailSyncEngine {
   /** @param {*} body @return {string} @private */
   static preview_(body) {
     return String(body || '').replace(/\s+/g, ' ').trim().slice(0, 500);
+  }
+
+  /** Preserves readable conversation text within the Sheets cell limit. @param {*} body @return {string} @private */
+  static bodyText_(body) {
+    return String(body || '').replace(/\r\n/g, '\n').trim().slice(0, 40000);
   }
 
   /**

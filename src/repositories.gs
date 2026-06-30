@@ -251,7 +251,7 @@ class SheetMessageRepository {
     this.sheet_.appendRow([
       record.id, record.ticketId, record.gmailMessageId, record.direction, record.from,
       record.to, record.cc, record.subject, record.sentAt, record.bodyPreview,
-      record.attachmentCount, record.driveFolderId, record.createdAt
+      record.attachmentCount, record.driveFolderId, record.createdAt, record.bodyText || record.bodyPreview || ''
     ]);
     this.gmailMessageIds_[String(record.gmailMessageId)] = true;
   }
