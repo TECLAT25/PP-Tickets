@@ -45,6 +45,9 @@
             <span class="material-symbols-rounded" aria-hidden="true">search</span>
             <input id="global-search" type="search" placeholder="Search tickets" autocomplete="off">
           </label>
+          <button id="sync-gmail" class="tonal-button top-action" type="button" aria-label="Synchronize Gmail">
+            <span class="material-symbols-rounded" aria-hidden="true">sync</span>Sync Gmail
+          </button>
           <button id="theme-toggle" class="icon-button" type="button" aria-label="Toggle dark mode">
             <span class="material-symbols-rounded" aria-hidden="true">dark_mode</span>
           </button>
@@ -126,5 +129,6 @@
     <div id="snackbar" class="snackbar" role="alert" aria-live="assertive" hidden></div>
     <?!= include('html/Scripts'); ?>
     <?!= include('html/DraftScripts'); ?>
+    <?!= include('html/SyncScripts'); ?>
   </body>
 </html>
