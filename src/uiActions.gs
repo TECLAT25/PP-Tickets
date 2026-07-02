@@ -20,3 +20,17 @@ function createUiDraftForTicket(ticketId, templateKey) {
     return AppUtils.errorResponse(error);
   }
 }
+
+/**
+ * Runs one bounded Gmail synchronization pass from the UI.
+ *
+ * @return {{ok: boolean, data: Object}|Object}
+ */
+function syncUiGmail() {
+  try {
+    const result = syncGmail();
+    return {ok: true, data: UiSerializer.toClient(result)};
+  } catch (error) {
+    return AppUtils.errorResponse(error);
+  }
+}
