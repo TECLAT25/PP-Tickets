@@ -109,7 +109,7 @@ class TicketNumberService {
     if (sheet.getLastRow() <= 1) {
       return 0;
     }
-    const pattern = new RegExp('^' + prefix + '-' + year + '-(\\d{6,})$');
+    const pattern = new RegExp('^' + prefix + '-' + year + '-(\d{6,})$');
     return sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues()
       .reduce(function(maximum, row) {
         const match = String(row[0]).match(pattern);
@@ -306,6 +306,33 @@ class TicketManager {
       version: this.version_
     });
     this.dashboard_.refresh();
+    this.logger_.info('Ticket category updated.', {ticketId: ticketId, category: normalized});
+    return updated;
+  }
+
+  /** @param {string} ticketId @param {string} assignedTo @return {Object} */
+  assign(ticketId, assignedTo) {
+    const normalized = String(assignedTo || '').trim();
+    const updated = this.repository_.update(ticketId, {
+      assignedTo: normalized,
+      updatedAt: this.clock_(),
+      version: this.version_
+    });
+    this.dashboard_.refresh();
+    this.logger_.info('Ticket assigned.', {ticketId: ticketId, assignedTo: normalized});
+    return updated;
+  }
+
+  /** @param {string} ticketId @param {*=} tags @return {Object} */
+  updateTags(ticketId, tags) {
+    const normalized = TicketManager.normalizeTags_(tags);
+    const updated = this.repository_.update(ticketId, {
+      tags: normalized,
+      updatedAt: this.clock_(),
+      version: this.version_
+    });
+    this.dashboard_.refresh();
+    this.logger_.info('Ticket tags updated.', {ticketId: ticketId, tags: normalized});
     return updated;
   }
 
@@ -381,6 +408,16 @@ function updateTicketPriority(ticketId, priority) {
 /** @param {string} ticketId @param {string} category @return {Object} */
 function updateTicketCategory(ticketId, category) {
   return withTicketLock_(function(manager) { return manager.updateCategory(ticketId, category); });
+}
+
+/** @param {string} ticketId @param {string} assignedTo @return {Object} */
+function assignTicket(ticketId, assignedTo) {
+  return withTicketLock_(function(manager) { return manager.assign(ticketId, assignedTo); });
+}
+
+/** @param {string} ticketId @param {*=} tags @return {Object} */
+function updateTicketTags(ticketId, tags) {
+  return withTicketLock_(function(manager) { return manager.updateTags(ticketId, tags); });
 }
 
 /** @param {Object=} criteria @return {Object} */
