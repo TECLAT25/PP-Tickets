@@ -5,6 +5,10 @@ function onOpen() {
     .addItem('Open application', 'showSidebar')
     .addSeparator()
     .addItem('Install or repair', 'installFromMenu')
+    .addItem('Synchronize Gmail now', 'syncGmailFromMenu')
+    .addItem('Enable background sync', 'enableBackgroundSyncFromMenu')
+    .addItem('Disable background sync', 'disableBackgroundSyncFromMenu')
+    .addSeparator()
     .addItem('Refresh dashboard', 'refreshDashboard')
     .addSeparator()
     .addItem('About', 'showAbout')
@@ -22,6 +26,51 @@ function installFromMenu() {
   try {
     const result = install();
     ui.alert(APP.NAME, 'Installation completed. Version ' + result.version + ' is ready.', ui.ButtonSet.OK);
+  } catch (error) {
+    const response = AppUtils.errorResponse(error);
+    ui.alert(APP.NAME, response.error.message + '\n\nReference: ' + response.correlationId, ui.ButtonSet.OK);
+  }
+}
+
+/** Runs Gmail synchronization from the spreadsheet menu. */
+function syncGmailFromMenu() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    const result = syncGmail();
+    ui.alert(
+      APP.NAME,
+      'Gmail synchronization completed.\n\n' +
+      'Tickets created: ' + result.createdTickets + '\n' +
+      'Messages added: ' + result.createdMessages + '\n' +
+      'Attachments saved: ' + result.attachments + '\n' +
+      'Failed threads: ' + result.failedThreads,
+      ui.ButtonSet.OK
+    );
+  } catch (error) {
+    const response = AppUtils.errorResponse(error);
+    ui.alert(APP.NAME, response.error.message + '\n\nReference: ' + response.correlationId, ui.ButtonSet.OK);
+  }
+}
+
+/** Enables managed background triggers from the spreadsheet menu. */
+function enableBackgroundSyncFromMenu() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    TriggerManager.ensureMaintenanceTrigger();
+    TriggerManager.ensureGmailSyncTrigger();
+    ui.alert(APP.NAME, 'Background synchronization is enabled.', ui.ButtonSet.OK);
+  } catch (error) {
+    const response = AppUtils.errorResponse(error);
+    ui.alert(APP.NAME, response.error.message + '\n\nReference: ' + response.correlationId, ui.ButtonSet.OK);
+  }
+}
+
+/** Disables managed background triggers from the spreadsheet menu. */
+function disableBackgroundSyncFromMenu() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    TriggerManager.removeManagedTriggers();
+    ui.alert(APP.NAME, 'Background synchronization is disabled.', ui.ButtonSet.OK);
   } catch (error) {
     const response = AppUtils.errorResponse(error);
     ui.alert(APP.NAME, response.error.message + '\n\nReference: ' + response.correlationId, ui.ButtonSet.OK);
