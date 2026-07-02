@@ -34,3 +34,48 @@ function syncUiGmail() {
     return AppUtils.errorResponse(error);
   }
 }
+
+/**
+ * Updates the workflow status of a ticket from the UI.
+ * @param {string} ticketId
+ * @param {string} status
+ * @return {{ok: boolean, data: Object}|Object}
+ */
+function updateUiTicketStatus(ticketId, status) {
+  try {
+    const result = updateTicketStatus(ticketId, status);
+    return {ok: true, data: UiSerializer.toClient(result)};
+  } catch (error) {
+    return AppUtils.errorResponse(error);
+  }
+}
+
+/**
+ * Updates the priority of a ticket from the UI.
+ * @param {string} ticketId
+ * @param {string} priority
+ * @return {{ok: boolean, data: Object}|Object}
+ */
+function updateUiTicketPriority(ticketId, priority) {
+  try {
+    const result = updateTicketPriority(ticketId, priority);
+    return {ok: true, data: UiSerializer.toClient(result)};
+  } catch (error) {
+    return AppUtils.errorResponse(error);
+  }
+}
+
+/**
+ * Updates the category of a ticket from the UI.
+ * @param {string} ticketId
+ * @param {string} category
+ * @return {{ok: boolean, data: Object}|Object}
+ */
+function updateUiTicketCategory(ticketId, category) {
+  try {
+    const result = updateTicketCategory(ticketId, category);
+    return {ok: true, data: UiSerializer.toClient(result)};
+  } catch (error) {
+    return AppUtils.errorResponse(error);
+  }
+}
