@@ -1,0 +1,102 @@
+<script>
+(function () {
+  'use strict';
+
+  function callServer(functionName) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      const runner = google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject);
+      runner[functionName].apply(runner, args);
+    });
+  }
+
+  function unwrap(response) {
+    if (!response || response.ok !== true) {
+      const error = response && response.error ? response.error : {};
+      throw new Error(error.message || 'The server returned an invalid response.');
+    }
+    return response.data;
+  }
+
+  function showSnack(message) {
+    const snackbar = document.getElementById('snackbar');
+    if (!snackbar) return;
+    snackbar.textContent = message;
+    snackbar.hidden = false;
+    window.setTimeout(function () { snackbar.hidden = true; }, 6000);
+  }
+
+  function injectDraftStyles() {
+    if (document.getElementById('draft-action-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'draft-action-styles';
+    style.textContent = [
+      '.detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }',
+      '.detail-actions .tonal-button[disabled] { opacity: .6; cursor: progress; }'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  function selectedTicketId() {
+    const selected = document.querySelector('[data-ticket-id].is-selected');
+    if (selected && selected.dataset.ticketId) return selected.dataset.ticketId;
+    const eyebrow = document.querySelector('#ticket-detail .detail-header .eyebrow');
+    return eyebrow ? eyebrow.textContent.trim() : '';
+  }
+
+  function ensureDraftButton() {
+    injectDraftStyles();
+    const header = document.querySelector('#ticket-detail .detail-header');
+    if (!header || header.querySelector('[data-action="create-draft"]')) return;
+    const ticketId = selectedTicketId();
+    if (!ticketId) return;
+
+    const actions = document.createElement('div');
+    actions.className = 'detail-actions';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'tonal-button';
+    button.dataset.action = 'create-draft';
+    button.innerHTML = '<span class="material-symbols-rounded" aria-hidden="true">edit_note</span>Create Gmail draft';
+    button.addEventListener('click', async function () {
+      const id = selectedTicketId();
+      if (!id) return;
+      button.disabled = true;
+      const previous = button.innerHTML;
+      button.innerHTML = '<span class="spinner" aria-hidden="true"></span>Creating draft…';
+      try {
+        const result = unwrap(await callServer('createUiDraftForTicket', id, 'DEFAULT_SUPPORT_REPLY'));
+        showSnack('Draft created for ' + result.ticketId + '. Review it in Gmail before sending.');
+      } catch (error) {
+        showSnack(error && error.message ? error.message : String(error));
+      } finally {
+        button.disabled = false;
+        button.innerHTML = previous;
+      }
+    });
+
+    actions.appendChild(button);
+    header.appendChild(actions);
+  }
+
+  const observer = new MutationObserver(function () {
+    ensureDraftButton();
+  });
+
+  function start() {
+    const panel = document.getElementById('ticket-detail');
+    if (!panel) return;
+    observer.observe(panel, {childList: true, subtree: true});
+    ensureDraftButton();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+})();
+</script>
