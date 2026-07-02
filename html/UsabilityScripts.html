@@ -1,0 +1,238 @@
+<script>
+(function () {
+  'use strict';
+
+  function injectStyles() {
+    if (document.getElementById('pp-usability-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'pp-usability-styles';
+    style.textContent = [
+      '.quick-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }',
+      '.quick-summary-card { padding: 10px 12px; border: 1px solid var(--outline-variant); border-radius: var(--radius-sm); background: var(--surface-container); }',
+      '.quick-summary-card span { display: block; color: var(--on-surface-variant); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }',
+      '.quick-summary-card strong { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }',
+      '.quick-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }',
+      '.mini-button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px; border: 1px solid var(--outline-variant); border-radius: 16px; background: var(--surface-bright); color: var(--on-surface); cursor: pointer; font-size: 12px; }',
+      '.mini-button:hover { background: var(--surface-container-high); }',
+      '.mini-button .material-symbols-rounded { font-size: 18px; }',
+      '.sla-alert { margin-top: 12px; padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px; }',
+      '.sla-alert[data-tone="error"] { color: var(--error); background: var(--error-container); }',
+      '.sla-alert[data-tone="warning"] { color: var(--warning); background: var(--warning-container); }',
+      '.sla-alert[data-tone="success"] { color: var(--success); background: var(--success-container); }',
+      '.message.is-collapsed p { display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden; }',
+      '.message-toggle { margin-top: 8px; padding: 0; border: 0; background: transparent; color: var(--primary); cursor: pointer; font-size: 12px; font-weight: 700; }',
+      '.ticket-row-badge { display: inline-flex; margin-left: 8px; vertical-align: middle; }',
+      '@media (max-width: 760px) { .quick-summary { grid-template-columns: 1fr; } }'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  function icon(name) {
+    const span = document.createElement('span');
+    span.className = 'material-symbols-rounded';
+    span.setAttribute('aria-hidden', 'true');
+    span.textContent = name;
+    return span;
+  }
+
+  function selectedTicketId() {
+    const eyebrow = document.querySelector('#ticket-detail .detail-header .eyebrow');
+    return eyebrow ? eyebrow.textContent.trim() : '';
+  }
+
+  function detailFieldValue(label) {
+    const fields = document.querySelectorAll('#ticket-detail .detail-field');
+    for (let index = 0; index < fields.length; index += 1) {
+      const title = fields[index].querySelector('dt');
+      const value = fields[index].querySelector('dd');
+      if (title && value && title.textContent.trim().toLowerCase() === label.toLowerCase()) {
+        return value.textContent.trim();
+      }
+    }
+    return '';
+  }
+
+  function chipValue(index) {
+    const chips = document.querySelectorAll('#ticket-detail .detail-chips .chip');
+    return chips[index] ? chips[index].textContent.trim() : '';
+  }
+
+  function formatRelative(dateText) {
+    if (!dateText || dateText === '—') return 'No date';
+    const date = new Date(dateText);
+    if (Number.isNaN(date.getTime())) return dateText;
+    const diffMs = date.getTime() - Date.now();
+    const absHours = Math.round(Math.abs(diffMs) / 36e5);
+    if (absHours < 1) return diffMs < 0 ? 'less than 1h ago' : 'in less than 1h';
+    if (absHours < 48) return diffMs < 0 ? absHours + 'h ago' : 'in ' + absHours + 'h';
+    const days = Math.round(absHours / 24);
+    return diffMs < 0 ? days + 'd ago' : 'in ' + days + 'd';
+  }
+
+  function copyText(value, label) {
+    if (!value || value === '—') return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(value).then(function () {
+        showSnack(label + ' copied.');
+      }).catch(function () {
+        fallbackCopy(value, label);
+      });
+    } else {
+      fallbackCopy(value, label);
+    }
+  }
+
+  function fallbackCopy(value, label) {
+    const input = document.createElement('textarea');
+    input.value = value;
+    input.style.position = 'fixed';
+    input.style.left = '-9999px';
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand('copy');
+    input.remove();
+    showSnack(label + ' copied.');
+  }
+
+  function showSnack(message) {
+    const snackbar = document.getElementById('snackbar');
+    if (!snackbar) return;
+    snackbar.textContent = message;
+    snackbar.hidden = false;
+    window.setTimeout(function () { snackbar.hidden = true; }, 5000);
+  }
+
+  function makeSummaryCard(label, value) {
+    const card = document.createElement('div');
+    card.className = 'quick-summary-card';
+    const caption = document.createElement('span');
+    caption.textContent = label;
+    const strong = document.createElement('strong');
+    strong.textContent = value || '—';
+    card.appendChild(caption);
+    card.appendChild(strong);
+    return card;
+  }
+
+  function makeMiniButton(iconName, label, handler) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'mini-button';
+    button.appendChild(icon(iconName));
+    button.appendChild(document.createTextNode(label));
+    button.addEventListener('click', handler);
+    return button;
+  }
+
+  function ensureDetailSummary() {
+    injectStyles();
+    const header = document.querySelector('#ticket-detail .detail-header');
+    if (!header || header.querySelector('.quick-summary')) return;
+    const ticketId = selectedTicketId();
+    if (!ticketId) return;
+
+    const customer = detailFieldValue('Customer');
+    const assignee = detailFieldValue('Assignee');
+    const slaDue = detailFieldValue('SLA due');
+    const status = chipValue(0);
+
+    const summary = document.createElement('div');
+    summary.className = 'quick-summary';
+    summary.appendChild(makeSummaryCard('Customer', customer));
+    summary.appendChild(makeSummaryCard('Responsible', assignee));
+    summary.appendChild(makeSummaryCard('SLA', formatRelative(slaDue)));
+    header.appendChild(summary);
+
+    const actions = document.createElement('div');
+    actions.className = 'quick-actions';
+    actions.appendChild(makeMiniButton('content_copy', 'Copy ticket ID', function () {
+      copyText(ticketId, 'Ticket ID');
+    }));
+    actions.appendChild(makeMiniButton('alternate_email', 'Copy customer email', function () {
+      copyText(customer, 'Customer email');
+    }));
+    if (customer && customer !== '—') {
+      actions.appendChild(makeMiniButton('mail', 'Mail customer', function () {
+        window.open('mailto:' + encodeURIComponent(customer) + '?subject=' + encodeURIComponent('PocketPiano support ' + ticketId));
+      }));
+    }
+    header.appendChild(actions);
+
+    const alert = document.createElement('div');
+    alert.className = 'sla-alert';
+    const dueDate = new Date(slaDue);
+    if (Number.isNaN(dueDate.getTime()) || status === 'Closed' || status === 'Resolved') {
+      alert.dataset.tone = 'success';
+      alert.textContent = 'This ticket is not currently at SLA risk.';
+    } else if (dueDate.getTime() < Date.now()) {
+      alert.dataset.tone = 'error';
+      alert.textContent = 'SLA breached. Prioritize this ticket.';
+    } else if (dueDate.getTime() - Date.now() < 12 * 60 * 60 * 1000) {
+      alert.dataset.tone = 'warning';
+      alert.textContent = 'SLA due soon. Review before it expires.';
+    } else {
+      alert.dataset.tone = 'success';
+      alert.textContent = 'SLA is under control.';
+    }
+    header.appendChild(alert);
+  }
+
+  function enhanceMessages() {
+    document.querySelectorAll('#ticket-detail .message').forEach(function (message) {
+      if (message.dataset.enhanced === 'true') return;
+      const body = message.querySelector('p');
+      if (!body) return;
+      message.dataset.enhanced = 'true';
+      const text = body.textContent || '';
+      if (text.length < 900) return;
+      message.classList.add('is-collapsed');
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'message-toggle';
+      toggle.textContent = 'Show full message';
+      toggle.addEventListener('click', function () {
+        const collapsed = message.classList.toggle('is-collapsed');
+        toggle.textContent = collapsed ? 'Show full message' : 'Show less';
+      });
+      message.appendChild(toggle);
+    });
+  }
+
+  function enhanceRows() {
+    document.querySelectorAll('#ticket-table-body tr').forEach(function (row) {
+      if (row.dataset.usabilityEnhanced === 'true') return;
+      row.dataset.usabilityEnhanced = 'true';
+      const priorityCell = row.children[2];
+      const updatedCell = row.children[4];
+      if (!priorityCell || !updatedCell) return;
+      const priority = priorityCell.textContent.trim().toUpperCase();
+      if (priority === 'CRITICAL' || priority === 'HIGH') {
+        const marker = document.createElement('span');
+        marker.className = 'ticket-row-badge';
+        marker.title = 'High attention ticket';
+        marker.appendChild(icon(priority === 'CRITICAL' ? 'emergency_home' : 'priority_high'));
+        priorityCell.appendChild(marker);
+      }
+    });
+  }
+
+  function runEnhancements() {
+    ensureDetailSummary();
+    enhanceMessages();
+    enhanceRows();
+  }
+
+  const observer = new MutationObserver(runEnhancements);
+
+  function start() {
+    observer.observe(document.body, {childList: true, subtree: true});
+    runEnhancements();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+})();
+</script>
