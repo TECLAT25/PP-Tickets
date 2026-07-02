@@ -12,7 +12,8 @@ class GmailSyncEngine {
    *   customerRepository: Object,
    *   attachmentStore: Object,
    *   settings: Object,
-   *   idGenerator: function(): string,
+   *   ticketIdGenerator: function(): string,
+   *   messageIdGenerator: function(): string,
    *   clock: function(): Date,
    *   logger: Object,
    *   version: string
@@ -21,7 +22,7 @@ class GmailSyncEngine {
   constructor(dependencies) {
     const required = [
       'gmailGateway', 'ticketRepository', 'messageRepository', 'customerRepository', 'attachmentStore',
-      'settings', 'idGenerator', 'clock', 'logger', 'version'
+      'settings', 'ticketIdGenerator', 'messageIdGenerator', 'clock', 'logger', 'version'
     ];
     required.forEach(function(name) {
       if (!dependencies || dependencies[name] == null) {
@@ -34,7 +35,8 @@ class GmailSyncEngine {
     this.customers_ = dependencies.customerRepository;
     this.attachments_ = dependencies.attachmentStore;
     this.settings_ = dependencies.settings;
-    this.idGenerator_ = dependencies.idGenerator;
+    this.ticketIdGenerator_ = dependencies.ticketIdGenerator;
+    this.messageIdGenerator_ = dependencies.messageIdGenerator;
     this.clock_ = dependencies.clock;
     this.logger_ = dependencies.logger;
     this.version_ = dependencies.version;
@@ -113,7 +115,7 @@ class GmailSyncEngine {
 
     if (!ticket) {
       ticket = this.tickets_.create({
-        id: this.idGenerator_(),
+        id: this.ticketIdGenerator_(),
         threadId: thread.id,
         status: 'NEW',
         priority: 'NORMAL',
@@ -138,7 +140,7 @@ class GmailSyncEngine {
       const stored = this.attachments_.save(ticket.id, message.id, message.attachments || []);
       ticketFolderId = stored.folderId || ticketFolderId;
       this.messages_.add({
-        id: this.idGenerator_(),
+        id: this.messageIdGenerator_(),
         ticketId: ticket.id,
         gmailMessageId: message.id,
         direction: GmailSyncEngine.direction_(message.from, mailbox),
@@ -337,7 +339,8 @@ function syncGmail() {
       customerRepository: new SheetCustomerRepository(),
       attachmentStore: new DriveAttachmentStore(),
       settings: new GmailSyncSettings(),
-      idGenerator: function() { return TicketNumberService.nextUnlocked_(); },
+      ticketIdGenerator: function() { return TicketNumberService.nextUnlocked_(); },
+      messageIdGenerator: function() { return 'MSG-' + AppUtils.uuid(); },
       clock: function() { return new Date(); },
       logger: AppLogger,
       version: APP_VERSION
