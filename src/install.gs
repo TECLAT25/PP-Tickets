@@ -22,19 +22,20 @@ class AppInstaller {
       AppInstaller.seedSettings_(spreadsheet);
       AppInstaller.ensureDriveResources_();
       AppInstaller.ensureGmailResources_();
-      AppInstaller.ensureTriggers_();
+      const triggerStatus = AppInstaller.ensureTriggers_();
       AppInstaller.refreshDashboard_(spreadsheet);
 
       AppConfig.getProperties().setProperty(APP.PROPERTY_KEYS.INSTALLED_VERSION, APP_VERSION);
       AppConfig.clearCache();
       SpreadsheetApp.flush();
-      AppLogger.info('Installation completed.', {version: APP_VERSION}, correlationId);
+      AppLogger.info('Installation completed.', {version: APP_VERSION, triggers: triggerStatus}, correlationId);
 
       return {
         ok: true,
         version: APP_VERSION,
         spreadsheetId: spreadsheet.getId(),
-        sheets: SHEET_SCHEMAS.map(function(schema) { return schema.name; })
+        sheets: SHEET_SCHEMAS.map(function(schema) { return schema.name; }),
+        triggers: triggerStatus
       };
     } catch (error) {
       AppLogger.error('Installation failed.', {
@@ -145,10 +146,23 @@ class AppInstaller {
     }
   }
 
-  /** Creates managed background triggers. @private */
+  /** Creates managed background triggers when the manifest permission is available. @private */
   static ensureTriggers_() {
-    TriggerManager.ensureMaintenanceTrigger();
-    TriggerManager.ensureGmailSyncTrigger();
+    try {
+      TriggerManager.ensureMaintenanceTrigger();
+      TriggerManager.ensureGmailSyncTrigger();
+      return {ok: true, enabled: true};
+    } catch (error) {
+      const message = error && error.message ? error.message : String(error);
+      if (message.indexOf('script.scriptapp') !== -1 || message.indexOf('ScriptApp.getProjectTriggers') !== -1) {
+        AppLogger.warn('Background triggers were not installed because script.scriptapp permission is missing.', {
+          error: message,
+          nextStep: 'Add https://www.googleapis.com/auth/script.scriptapp to appsscript.json and run clasp push, then authorize again.'
+        });
+        return {ok: false, enabled: false, reason: 'MISSING_SCRIPTAPP_SCOPE'};
+      }
+      throw error;
+    }
   }
 
   /**
