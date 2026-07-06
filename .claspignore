@@ -1,0 +1,5 @@
+**/*.gs
+node_modules/**
+.git/**
+.gitignore
+.clasprc.json
