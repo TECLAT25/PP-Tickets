@@ -10,7 +10,7 @@
     <?!= include('css/Styles'); ?>
   </head>
   <body>
-    <div class="app">
+    <div class="app support-shell">
       <aside class="navigation" aria-label="Primary navigation">
         <div class="brand">
           <span class="brand-mark material-symbols-rounded" aria-hidden="true">piano</span>
@@ -39,14 +39,17 @@
         </div>
       </aside>
 
-      <main class="main">
-        <header class="top-app-bar">
+      <main class="main support-main">
+        <header class="top-app-bar support-topbar">
           <label class="search-field" for="global-search">
             <span class="material-symbols-rounded" aria-hidden="true">search</span>
-            <input id="global-search" type="search" placeholder="Search tickets" autocomplete="off">
+            <input id="global-search" type="search" placeholder="Search customer, ticket, serial number…" autocomplete="off">
           </label>
           <button id="sync-gmail" class="tonal-button top-action" type="button" aria-label="Synchronize Gmail">
-            <span class="material-symbols-rounded" aria-hidden="true">sync</span>Sync Gmail
+            <span class="material-symbols-rounded" aria-hidden="true">sync</span>Sync
+          </button>
+          <button class="tonal-button top-action" type="button" data-action="refresh">
+            <span class="material-symbols-rounded" aria-hidden="true">refresh</span>Refresh
           </button>
           <button id="theme-toggle" class="icon-button" type="button" aria-label="Toggle dark mode">
             <span class="material-symbols-rounded" aria-hidden="true">dark_mode</span>
@@ -75,40 +78,56 @@
           </section>
         </section>
 
-        <section id="view-tickets" class="view" aria-labelledby="tickets-title">
-          <div class="page-heading">
-            <div><p class="eyebrow">Support</p><h1 id="tickets-title">Tickets</h1></div>
-            <span id="ticket-count" class="count-badge">0 tickets</span>
-          </div>
-          <div class="ticket-workspace">
-            <section class="surface ticket-browser">
-              <div class="filters" aria-label="Ticket filters">
-                <label><span>Status</span><select id="filter-status"><option value="">All</option></select></label>
-                <label><span>Priority</span><select id="filter-priority"><option value="">All</option></select></label>
-                <label><span>Category</span><select id="filter-category"><option value="">All</option></select></label>
-                <label class="breach-filter"><input id="filter-breached" type="checkbox"><span>SLA breached</span></label>
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Ticket</th><th>Status</th><th>Priority</th><th>Customer</th><th>Updated</th></tr></thead>
-                  <tbody id="ticket-table-body"></tbody>
-                </table>
-              </div>
-              <div id="ticket-empty" class="empty-state" hidden>
-                <span class="material-symbols-rounded" aria-hidden="true">inbox</span>
-                <h3>No tickets found</h3>
-                <p>Try clearing one or more filters.</p>
-              </div>
-            </section>
+        <section id="view-tickets" class="view support-workbench" aria-labelledby="tickets-title">
+          <aside class="queue-panel surface" aria-label="Ticket queues">
+            <div class="queue-title">
+              <p class="eyebrow">Queues</p>
+              <h2>Work</h2>
+            </div>
+            <div id="queue-list" class="queue-list">
+              <button class="queue-item is-active" type="button" data-queue="all"><span>Inbox</span><strong>0</strong></button>
+              <button class="queue-item" type="button" data-queue="new"><span>New</span><strong>0</strong></button>
+              <button class="queue-item" type="button" data-queue="critical"><span>Critical</span><strong>0</strong></button>
+              <button class="queue-item" type="button" data-queue="breached"><span>SLA breached</span><strong>0</strong></button>
+              <button class="queue-item" type="button" data-queue="pending"><span>Waiting customer</span><strong>0</strong></button>
+              <button class="queue-item" type="button" data-queue="warranty"><span>Warranty</span><strong>0</strong></button>
+            </div>
+            <div class="filters compact-filters" aria-label="Ticket filters">
+              <label><span>Status</span><select id="filter-status"><option value="">All</option></select></label>
+              <label><span>Priority</span><select id="filter-priority"><option value="">All</option></select></label>
+              <label><span>Category</span><select id="filter-category"><option value="">All</option></select></label>
+              <label class="breach-filter"><input id="filter-breached" type="checkbox"><span>SLA breached</span></label>
+            </div>
+          </aside>
 
-            <aside id="ticket-detail" class="surface detail-panel" aria-live="polite">
-              <div class="empty-state">
-                <span class="material-symbols-rounded" aria-hidden="true">select_check_box</span>
-                <h3>Select a ticket</h3>
-                <p>Ticket details and conversation will appear here.</p>
-              </div>
-            </aside>
-          </div>
+          <section class="ticket-list-panel surface" aria-labelledby="tickets-title">
+            <div class="ticket-list-header">
+              <div><p class="eyebrow">Support</p><h1 id="tickets-title">Tickets</h1></div>
+              <span id="ticket-count" class="count-badge">0 tickets</span>
+            </div>
+            <div class="ticket-list-tools">
+              <span class="muted">Sorted by last update</span>
+            </div>
+            <div class="table-wrap ticket-card-table">
+              <table>
+                <thead><tr><th>Ticket</th><th>Status</th><th>Priority</th><th>Customer</th><th>Updated</th></tr></thead>
+                <tbody id="ticket-table-body"></tbody>
+              </table>
+            </div>
+            <div id="ticket-empty" class="empty-state" hidden>
+              <span class="material-symbols-rounded" aria-hidden="true">inbox</span>
+              <h3>No tickets found</h3>
+              <p>Try clearing one or more filters.</p>
+            </div>
+          </section>
+
+          <aside id="ticket-detail" class="surface detail-panel support-detail" aria-live="polite">
+            <div class="empty-state">
+              <span class="material-symbols-rounded" aria-hidden="true">select_check_box</span>
+              <h3>Select a ticket</h3>
+              <p>Ticket details, customer history and conversation will appear here.</p>
+            </div>
+          </aside>
         </section>
 
         <section id="view-customer" class="view" aria-labelledby="customer-title">
@@ -133,5 +152,6 @@
     <?!= include('html/TicketActions'); ?>
     <?!= include('html/UsabilityScripts'); ?>
     <?!= include('html/QueueScripts'); ?>
+    <?!= include('html/WorkbenchScripts'); ?>
   </body>
 </html>
