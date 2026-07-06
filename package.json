@@ -1,11 +1,22 @@
 {
   "name": "pocketpiano-erp",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "private": true,
+  "description": "PocketPiano ERP Google Apps Script workspace.",
   "scripts": {
-    "test": "node tests/gmailSync.test.js && node tests/ticketManager.test.js && node tests/uiQuery.test.js"
+    "test": "node tests/gmailSync.test.js && node tests/ticketManager.test.js && node tests/uiQuery.test.js",
+    "login": "clasp login",
+    "status": "clasp status",
+    "push": "clasp push",
+    "pull:gas": "clasp pull",
+    "open": "clasp open",
+    "deploy": "clasp push",
+    "watch": "clasp push --watch"
+  },
+  "devDependencies": {
+    "@google/clasp": "^3.0.6-alpha"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   }
 }
