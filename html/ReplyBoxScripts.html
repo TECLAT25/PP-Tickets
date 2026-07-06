@@ -1,0 +1,106 @@
+<script>
+(function () {
+  'use strict';
+
+  function css() {
+    if (document.getElementById('reply-box-css')) return;
+    var style = document.createElement('style');
+    style.id = 'reply-box-css';
+    style.textContent = '.reply-box{margin:16px 20px 20px;padding:14px;border:1px solid var(--outline-variant);border-radius:14px;background:var(--surface-container)}' +
+      '.reply-box h3{margin:0 0 10px}' +
+      '.reply-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}' +
+      '.reply-chip{border:1px solid var(--outline-variant);border-radius:16px;background:var(--surface-bright);padding:6px 10px;cursor:pointer;font-size:12px}' +
+      '.reply-box textarea{width:100%;min-height:140px;resize:vertical;border:1px solid var(--outline-variant);border-radius:12px;padding:12px;background:var(--surface-bright);color:var(--on-surface);font:inherit}' +
+      '.reply-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}';
+    document.head.appendChild(style);
+  }
+
+  function ticketId() {
+    var eyebrow = document.querySelector('#ticket-detail .detail-header .eyebrow');
+    return eyebrow ? eyebrow.textContent.trim() : '';
+  }
+
+  function customerEmail() {
+    var fields = document.querySelectorAll('#ticket-detail .detail-field');
+    for (var i = 0; i < fields.length; i += 1) {
+      var dt = fields[i].querySelector('dt');
+      var dd = fields[i].querySelector('dd');
+      if (dt && dd && dt.textContent.trim().toLowerCase() === 'customer') return dd.textContent.trim();
+    }
+    return '';
+  }
+
+  function insert(textarea, value) {
+    var start = textarea.selectionStart || textarea.value.length;
+    var end = textarea.selectionEnd || textarea.value.length;
+    textarea.value = textarea.value.slice(0, start) + value + textarea.value.slice(end);
+    textarea.focus();
+    textarea.selectionStart = textarea.selectionEnd = start + value.length;
+  }
+
+  function callServer(name) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      var runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      runner[name].apply(runner, args);
+    });
+  }
+
+  function toast(message) {
+    var snackbar = document.getElementById('snackbar');
+    if (!snackbar) return;
+    snackbar.textContent = message;
+    snackbar.hidden = false;
+    window.setTimeout(function () { snackbar.hidden = true; }, 6000);
+  }
+
+  function ensureBox() {
+    css();
+    var detail = document.getElementById('ticket-detail');
+    if (!detail || detail.querySelector('.reply-box') || !ticketId()) return;
+
+    var box = document.createElement('section');
+    box.className = 'reply-box';
+    box.innerHTML = '<h3>Quick reply</h3>' +
+      '<div class="reply-toolbar"></div>' +
+      '<textarea placeholder="Write the response draft here..."></textarea>' +
+      '<div class="reply-actions"><button class="text-button" type="button" data-reply-clear>Clear</button><button class="tonal-button" type="button" data-reply-draft>Create Gmail draft</button></div>';
+
+    var toolbar = box.querySelector('.reply-toolbar');
+    var textarea = box.querySelector('textarea');
+    [
+      ['Greeting', 'Hola,\n\nGracias por contactar con PocketPiano.\n\n'],
+      ['Ask serial', 'Para poder ayudarte mejor, indícanos el número de serie del PocketPiano y adjunta una foto o vídeo donde se vea el problema.\n\n'],
+      ['Warranty', 'Vamos a revisar si la incidencia queda cubierta por garantía.\n\n'],
+      ['Close', 'Un saludo,\nPocketPiano Support']
+    ].forEach(function (item) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'reply-chip';
+      button.textContent = item[0];
+      button.addEventListener('click', function () { insert(textarea, item[1]); });
+      toolbar.appendChild(button);
+    });
+
+    box.querySelector('[data-reply-clear]').addEventListener('click', function () { textarea.value = ''; });
+    box.querySelector('[data-reply-draft]').addEventListener('click', function () {
+      var id = ticketId();
+      if (!id) return;
+      callServer('createUiDraftForTicket', id, 'DEFAULT_SUPPORT_REPLY').then(function (response) {
+        if (response && response.ok) toast('Gmail draft created for ' + id + '.');
+        else toast((response && response.error && response.error.message) || 'Draft could not be created.');
+      }).catch(function (error) { toast(error.message || String(error)); });
+    });
+
+    detail.appendChild(box);
+  }
+
+  function start() {
+    new MutationObserver(ensureBox).observe(document.body, {childList: true, subtree: true});
+    ensureBox();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>
