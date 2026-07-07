@@ -212,30 +212,63 @@
     });
     panel.appendChild(grid);
 
-    const conversation = element('section', 'conversation');
-    conversation.appendChild(element('h3', '', 'Conversation'));
+    const conversation = element('section', 'conversation email-chain');
+    const heading = element('div', 'email-chain-heading');
+    heading.appendChild(element('h3', '', 'Email chain'));
+    heading.appendChild(element('span', '', (detail.messages || []).length + ' messages'));
+    conversation.appendChild(heading);
+
     if (!detail.messages.length) {
       conversation.appendChild(element('p', '', 'No synchronized messages for this ticket.'));
     } else {
-      detail.messages.forEach(function (message) {
-        const item = element('article', 'message' + (message.direction === 'OUTBOUND' ? ' is-outbound' : ''));
-        const head = element('div', 'message-head');
-        head.appendChild(element('strong', '', message.direction === 'OUTBOUND' ? 'PocketPiano Support' : message.from));
-        head.appendChild(element('time', '', formatDate(message.sentAt)));
-        item.appendChild(head);
-        item.appendChild(element('p', '', message.body || '(empty message)'));
-        if (message.attachmentCount > 0) {
-          const attachment = element('span', 'attachment');
-          attachment.appendChild(icon('attach_file'));
-          attachment.appendChild(document.createTextNode(
-            message.attachmentCount + (message.attachmentCount === 1 ? ' attachment' : ' attachments')
-          ));
-          item.appendChild(attachment);
-        }
-        conversation.appendChild(item);
+      detail.messages.forEach(function (message, index) {
+        conversation.appendChild(renderEmailMessage(message, index));
       });
     }
     panel.appendChild(conversation);
+  }
+
+  function renderEmailMessage(message, index) {
+    const item = element('article', 'message email-message' + (message.direction === 'OUTBOUND' ? ' is-outbound' : ''));
+    const top = element('div', 'email-message-top');
+    const identity = element('div', 'email-message-identity');
+    identity.appendChild(element('strong', '', message.direction === 'OUTBOUND' ? 'PocketPiano Support' : (message.from || 'Unknown sender')));
+    identity.appendChild(element('span', '', 'Message ' + (index + 1)));
+    top.appendChild(identity);
+    top.appendChild(element('time', '', formatDate(message.sentAt)));
+    item.appendChild(top);
+
+    const subject = element('div', 'email-subject');
+    subject.appendChild(element('span', '', 'Subject'));
+    subject.appendChild(element('strong', '', message.subject || '(no subject)'));
+    item.appendChild(subject);
+
+    const meta = element('dl', 'email-meta');
+    [
+      ['From', message.from || '—'],
+      ['To', message.to || '—'],
+      ['Cc', message.cc || '—']
+    ].forEach(function (field) {
+      const wrapper = element('div');
+      wrapper.appendChild(element('dt', '', field[0]));
+      wrapper.appendChild(element('dd', '', field[1]));
+      meta.appendChild(wrapper);
+    });
+    item.appendChild(meta);
+
+    const body = element('div', 'email-body');
+    body.textContent = message.body || '(empty message)';
+    item.appendChild(body);
+
+    if (message.attachmentCount > 0) {
+      const attachment = element('span', 'attachment email-attachment');
+      attachment.appendChild(icon('attach_file'));
+      attachment.appendChild(document.createTextNode(
+        message.attachmentCount + (message.attachmentCount === 1 ? ' attachment' : ' attachments')
+      ));
+      item.appendChild(attachment);
+    }
+    return item;
   }
 
   function renderCustomer(customer) {
