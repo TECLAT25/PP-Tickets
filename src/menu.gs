@@ -91,7 +91,7 @@ function createApplicationHtml_() {
 function showApplicationDialog() {
   try {
     SpreadsheetApp.getUi().showModalDialog(
-      createApplicationHtml_().setWidth(1800).setHeight(1000),
+      createApplicationHtml_().setWidth(2200).setHeight(1250),
       APP.NAME
     );
   } catch (error) {
