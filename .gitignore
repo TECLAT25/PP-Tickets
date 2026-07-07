@@ -2,3 +2,5 @@ node_modules/
 .clasp.json
 .clasprc.json
 .DS_Store
+PocketPiano-ERP/
+package-lock.json
