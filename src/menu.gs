@@ -2,7 +2,8 @@
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu(APP.NAME)
-    .addItem('Open application', 'showSidebar')
+    .addItem('Open application', 'showApplicationDialog')
+    .addItem('Open narrow sidebar', 'showSidebar')
     .addSeparator()
     .addItem('Install or repair', 'installFromMenu')
     .addItem('Synchronize Gmail now', 'syncGmailFromMenu')
@@ -77,14 +78,32 @@ function disableBackgroundSyncFromMenu() {
   }
 }
 
+/** @return {GoogleAppsScript.HTML.HtmlOutput} @private */
+function createApplicationHtml_() {
+  const template = HtmlService.createTemplateFromFile('html/Index');
+  template.bootstrap = getApplicationBootstrap();
+  return template.evaluate()
+    .setTitle(APP.NAME)
+    .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+}
+
+/** Opens the HTMLService application in a large modal dialog. */
+function showApplicationDialog() {
+  try {
+    SpreadsheetApp.getUi().showModalDialog(
+      createApplicationHtml_().setWidth(1800).setHeight(1000),
+      APP.NAME
+    );
+  } catch (error) {
+    const response = AppUtils.errorResponse(error);
+    SpreadsheetApp.getUi().alert(response.error.message + '\nReference: ' + response.correlationId);
+  }
+}
+
 /** Opens the HTMLService application sidebar. */
 function showSidebar() {
   try {
-    const template = HtmlService.createTemplateFromFile('html/Index');
-    template.bootstrap = getApplicationBootstrap();
-    SpreadsheetApp.getUi().showSidebar(
-      template.evaluate().setTitle(APP.NAME).setSandboxMode(HtmlService.SandboxMode.IFRAME)
-    );
+    SpreadsheetApp.getUi().showSidebar(createApplicationHtml_().setTitle(APP.NAME));
   } catch (error) {
     const response = AppUtils.errorResponse(error);
     SpreadsheetApp.getUi().alert(response.error.message + '\nReference: ' + response.correlationId);
