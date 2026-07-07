@@ -1,0 +1,48 @@
+<script>
+(function () {
+  'use strict';
+
+  function byId(id) {
+    return document.getElementById(id);
+  }
+
+  function showBootError(message) {
+    var loading = byId('loading');
+    if (loading) loading.hidden = true;
+
+    var snackbar = byId('snackbar');
+    if (snackbar) {
+      snackbar.textContent = message;
+      snackbar.hidden = false;
+    }
+
+    var dashboard = byId('view-dashboard');
+    if (!dashboard || dashboard.querySelector('[data-boot-error]')) return;
+
+    var box = document.createElement('section');
+    box.className = 'surface empty-state';
+    box.setAttribute('data-boot-error', 'true');
+    box.innerHTML = '<span class="material-symbols-rounded" aria-hidden="true">error</span>' +
+      '<h3>Workspace could not finish loading</h3>' +
+      '<p>' + message + '</p>' +
+      '<p>Open Apps Script executions to see the server error, then run install() again if permissions changed.</p>';
+    dashboard.appendChild(box);
+  }
+
+  window.addEventListener('error', function (event) {
+    showBootError(event.message || 'A browser error stopped the interface.');
+  });
+
+  window.addEventListener('unhandledrejection', function (event) {
+    var reason = event.reason;
+    showBootError((reason && reason.message) || String(reason || 'A promise error stopped the interface.'));
+  });
+
+  window.setTimeout(function () {
+    var loading = byId('loading');
+    if (loading && !loading.hidden) {
+      showBootError('The initial data request did not complete. Check that support@pocketpiano.com has authorized the new Apps Script project and that getUiState() runs without errors.');
+    }
+  }, 15000);
+})();
+</script>
