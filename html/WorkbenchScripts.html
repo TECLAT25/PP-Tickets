@@ -69,22 +69,37 @@
     });
   }
 
+  function writeCount(selector, value) {
+    var node = document.querySelector(selector);
+    if (!node) return;
+    var next = String(value);
+    if (node.textContent !== next) node.textContent = next;
+  }
+
   function updateCounts() {
     var rows = Array.prototype.slice.call(document.querySelectorAll('#ticket-table-body tr'));
-    document.querySelector('.queue-item[data-queue="all"] strong').textContent = String(rows.length);
-    document.querySelector('.queue-item[data-queue="new"] strong').textContent = String(rows.filter(function (row) { return normalize(row.children[1] && row.children[1].textContent) === 'NEW'; }).length);
-    document.querySelector('.queue-item[data-queue="critical"] strong').textContent = String(rows.filter(function (row) { return normalize(row.children[2] && row.children[2].textContent) === 'CRITICAL'; }).length);
-    document.querySelector('.queue-item[data-queue="pending"] strong').textContent = String(rows.filter(function (row) { return normalize(row.children[1] && row.children[1].textContent) === 'PENDING_CUSTOMER'; }).length);
+    writeCount('.queue-item[data-queue="all"] strong', rows.length);
+    writeCount('.queue-item[data-queue="new"] strong', rows.filter(function (row) { return normalize(row.children[1] && row.children[1].textContent) === 'NEW'; }).length);
+    writeCount('.queue-item[data-queue="critical"] strong', rows.filter(function (row) { return normalize(row.children[2] && row.children[2].textContent) === 'CRITICAL'; }).length);
+    writeCount('.queue-item[data-queue="pending"] strong', rows.filter(function (row) { return normalize(row.children[1] && row.children[1].textContent) === 'PENDING_CUSTOMER'; }).length);
+  }
+
+  function scheduleUpdate() {
+    window.clearTimeout(scheduleUpdate.timer);
+    scheduleUpdate.timer = window.setTimeout(function () {
+      bindQueues();
+      updateCounts();
+    }, 50);
   }
 
   function start() {
     addCss();
     bindQueues();
     updateCounts();
-    new MutationObserver(function () {
-      bindQueues();
-      updateCounts();
-    }).observe(document.body, {childList: true, subtree: true});
+    var body = document.getElementById('ticket-table-body');
+    if (body) {
+      new MutationObserver(scheduleUpdate).observe(body, {childList: true});
+    }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
