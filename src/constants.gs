@@ -1,7 +1,7 @@
 /** Immutable application constants. @const */
 const APP = Object.freeze({
   NAME: 'PocketPiano ERP',
-  VERSION: '2.3.0',
+  VERSION: '2.3.1',
   LOCK_TIMEOUT_MS: 30000,
   LOG_RETENTION_DAYS: 90,
   PROPERTY_KEYS: Object.freeze({
@@ -59,8 +59,8 @@ const SHEET_SCHEMAS = Object.freeze([
 /** Production defaults seeded only when a setting is absent. @const */
 const DEFAULT_SETTINGS = Object.freeze([
   Object.freeze(['SUPPORT_EMAIL', 'support@pocketpiano.com', 'Mailbox or alias used for support']),
-  Object.freeze(['SUPPORT_GMAIL_QUERY', 'in:anywhere newer_than:30d', 'Bounded Gmail search query for synchronization']),
-  Object.freeze(['GMAIL_SYNC_LIMIT', '100', 'Maximum threads processed per synchronization pass']),
+  Object.freeze(['SUPPORT_GMAIL_QUERY', 'in:inbox newer_than:30d', 'Bounded Gmail search query for synchronization']),
+  Object.freeze(['GMAIL_SYNC_LIMIT', '1000', 'Maximum threads processed per synchronization pass']),
   Object.freeze(['SUPPORT_LABEL', 'PocketPiano/Processed', 'Label applied after successful ingestion']),
   Object.freeze(['ATTACHMENTS_FOLDER', 'Ticket Attachments', 'Drive subfolder for ticket attachments']),
   Object.freeze(['DEFAULT_LOCALE', 'es', 'Default template locale']),
