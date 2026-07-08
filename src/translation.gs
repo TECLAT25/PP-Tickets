@@ -15,9 +15,7 @@ class TranslationService {
       }
       const cacheKey = TranslationService.translationCacheKey_(message, text);
       const cached = TranslationService.getCachedTranslation_(cacheKey);
-      if (cached) {
-        return Object.assign({}, message, cached, {cached: true});
-      }
+      if (cached) return Object.assign({}, message, cached, {cached: true});
       const translated = TranslationService.translateText_(text);
       const result = {
         translatedBody: translated.text,
@@ -43,11 +41,7 @@ class TranslationService {
     return {ok: true, clientEmail: credentials.client_email, projectId: credentials.project_id};
   }
 
-  /**
-   * @param {string} text
-   * @return {{text: string, detectedLanguage: string}}
-   * @private
-   */
+  /** @param {string} text @return {{text: string, detectedLanguage: string}} @private */
   static translateText_(text) {
     const serviceAccount = TranslationService.getServiceAccount_();
     if (serviceAccount) return TranslationService.translateTextWithServiceAccount_(text, serviceAccount);
@@ -109,11 +103,7 @@ class TranslationService {
       throw new AppError('Invalid translation response from Google Cloud.', 'TRANSLATE_INVALID_RESPONSE', {status: status});
     }
     if (status < 200 || status >= 300) {
-      throw new AppError(
-        (parsed.error && parsed.error.message) || 'Google Cloud Translation request failed.',
-        'TRANSLATE_REQUEST_FAILED',
-        {status: status}
-      );
+      throw new AppError((parsed.error && parsed.error.message) || 'Google Cloud Translation request failed.', 'TRANSLATE_REQUEST_FAILED', {status: status});
     }
     const result = parsed.data && parsed.data.translations && parsed.data.translations[0];
     return {
@@ -129,11 +119,7 @@ class TranslationService {
     return TranslationService.parseServiceAccount_(raw);
   }
 
-  /**
-   * @param {string} jsonText
-   * @return {Object}
-   * @private
-   */
+  /** @param {string} jsonText @return {Object} @private */
   static parseServiceAccount_(jsonText) {
     let credentials;
     try {
@@ -142,18 +128,12 @@ class TranslationService {
       throw new AppError('Invalid Google Cloud service account JSON.', 'SERVICE_ACCOUNT_JSON_INVALID');
     }
     ['client_email', 'private_key', 'token_uri', 'project_id'].forEach(function(key) {
-      if (!credentials[key]) {
-        throw new AppError('Service account JSON is missing: ' + key, 'SERVICE_ACCOUNT_JSON_INCOMPLETE', {key: key});
-      }
+      if (!credentials[key]) throw new AppError('Service account JSON is missing: ' + key, 'SERVICE_ACCOUNT_JSON_INCOMPLETE', {key: key});
     });
     return credentials;
   }
 
-  /**
-   * @param {Object} serviceAccount
-   * @return {string}
-   * @private
-   */
+  /** @param {Object} serviceAccount @return {string} @private */
   static getAccessToken_(serviceAccount) {
     const cache = CacheService.getScriptCache();
     const cached = cache.get('google_cloud_translate_token');
@@ -168,17 +148,13 @@ class TranslationService {
       exp: now + 3600,
       iat: now
     };
-    const unsignedJwt = TranslationService.base64Url_(JSON.stringify(header)) + '.' +
-      TranslationService.base64Url_(JSON.stringify(claim));
+    const unsignedJwt = TranslationService.base64Url_(JSON.stringify(header)) + '.' + TranslationService.base64Url_(JSON.stringify(claim));
     const signature = Utilities.computeRsaSha256Signature(unsignedJwt, serviceAccount.private_key);
     const jwt = unsignedJwt + '.' + TranslationService.base64UrlBytes_(signature);
 
     const response = UrlFetchApp.fetch(serviceAccount.token_uri, {
       method: 'post',
-      payload: {
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion: jwt
-      },
+      payload: {grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: jwt},
       muteHttpExceptions: true
     });
     const status = response.getResponseCode();
@@ -190,33 +166,30 @@ class TranslationService {
       throw new AppError('Invalid Google OAuth token response.', 'GOOGLE_TOKEN_INVALID_RESPONSE', {status: status});
     }
     if (status < 200 || status >= 300 || !parsed.access_token) {
-      throw new AppError(
-        (parsed.error_description || parsed.error || 'Could not obtain Google Cloud access token.'),
-        'GOOGLE_TOKEN_REQUEST_FAILED',
-        {status: status}
-      );
+      throw new AppError((parsed.error_description || parsed.error || 'Could not obtain Google Cloud access token.'), 'GOOGLE_TOKEN_REQUEST_FAILED', {status: status});
     }
     cache.put('google_cloud_translate_token', parsed.access_token, 3300);
     return parsed.access_token;
   }
 
   /**
+   * Creates a short Script Properties-safe key.
    * @param {Object} message
    * @param {string} text
    * @return {string}
    * @private
    */
   static translationCacheKey_(message, text) {
-    const id = String(message.id || message.gmailMessageId || message.messageId || 'message');
-    const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, text)
+    const seed = String(message.id || message.gmailMessageId || message.messageId || '') + '\n' + text;
+    const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, seed)
       .map(function(byte) { return ('0' + (byte & 0xFF).toString(16)).slice(-2); })
-      .join('')
-      .slice(0, 32);
-    return 'translate_es_' + id.replace(/[^A-Za-z0-9_\-]/g, '_') + '_' + digest;
+      .join('');
+    return 'TR_ES_' + digest;
   }
 
   /** @param {string} key @return {Object|null} @private */
   static getCachedTranslation_(key) {
+    if (!key || key.length > 250) return null;
     const properties = AppConfig.getProperties();
     const value = properties.getProperty(key);
     if (!value) return null;
@@ -230,10 +203,9 @@ class TranslationService {
 
   /** @param {string} key @param {Object} value @private */
   static putCachedTranslation_(key, value) {
+    if (!key || key.length > 250) return;
     const text = JSON.stringify(value);
-    if (text.length < 8500) {
-      AppConfig.getProperties().setProperty(key, text);
-    }
+    if (text.length < 8500) AppConfig.getProperties().setProperty(key, text);
   }
 
   /** @param {string} text @return {string} @private */
