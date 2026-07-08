@@ -1,7 +1,7 @@
 /** Google Cloud Translation integration for support conversations. */
 class TranslationService {
   /**
-   * Translates a batch of UI messages to Spanish.
+   * Translates a batch of UI messages to Spanish, using a persistent script cache.
    * @param {Array<Object>} messages
    * @return {Array<Object>}
    */
@@ -11,14 +11,21 @@ class TranslationService {
     return items.map(function(message) {
       const text = String(message.body || '');
       if (!text.trim()) {
-        return Object.assign({}, message, {translatedBody: '', detectedLanguage: '', translated: false});
+        return Object.assign({}, message, {translatedBody: '', detectedLanguage: '', translated: false, cached: false});
+      }
+      const cacheKey = TranslationService.translationCacheKey_(message, text);
+      const cached = TranslationService.getCachedTranslation_(cacheKey);
+      if (cached) {
+        return Object.assign({}, message, cached, {cached: true});
       }
       const translated = TranslationService.translateText_(text);
-      return Object.assign({}, message, {
+      const result = {
         translatedBody: translated.text,
         detectedLanguage: translated.detectedLanguage,
         translated: translated.detectedLanguage && translated.detectedLanguage.toLowerCase() !== 'es'
-      });
+      };
+      TranslationService.putCachedTranslation_(cacheKey, result);
+      return Object.assign({}, message, result, {cached: false});
     });
   }
 
@@ -43,13 +50,9 @@ class TranslationService {
    */
   static translateText_(text) {
     const serviceAccount = TranslationService.getServiceAccount_();
-    if (serviceAccount) {
-      return TranslationService.translateTextWithServiceAccount_(text, serviceAccount);
-    }
+    if (serviceAccount) return TranslationService.translateTextWithServiceAccount_(text, serviceAccount);
     const apiKey = String(AppConfig.getSetting('GOOGLE_TRANSLATE_API_KEY', '') || '').trim();
-    if (apiKey) {
-      return TranslationService.translateTextWithApiKey_(text, apiKey);
-    }
+    if (apiKey) return TranslationService.translateTextWithApiKey_(text, apiKey);
     throw new AppError(
       'Google Cloud Translation credentials are missing. Run setupGoogleCloudServiceAccount() or add GOOGLE_TRANSLATE_API_KEY in Settings.',
       'TRANSLATE_CREDENTIALS_MISSING'
@@ -119,10 +122,7 @@ class TranslationService {
     };
   }
 
-  /**
-   * @return {Object|null}
-   * @private
-   */
+  /** @return {Object|null} @private */
   static getServiceAccount_() {
     const raw = AppConfig.getProperties().getProperty('GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON');
     if (!raw) return null;
@@ -198,6 +198,42 @@ class TranslationService {
     }
     cache.put('google_cloud_translate_token', parsed.access_token, 3300);
     return parsed.access_token;
+  }
+
+  /**
+   * @param {Object} message
+   * @param {string} text
+   * @return {string}
+   * @private
+   */
+  static translationCacheKey_(message, text) {
+    const id = String(message.id || message.gmailMessageId || message.messageId || 'message');
+    const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, text)
+      .map(function(byte) { return ('0' + (byte & 0xFF).toString(16)).slice(-2); })
+      .join('')
+      .slice(0, 32);
+    return 'translate_es_' + id.replace(/[^A-Za-z0-9_\-]/g, '_') + '_' + digest;
+  }
+
+  /** @param {string} key @return {Object|null} @private */
+  static getCachedTranslation_(key) {
+    const properties = AppConfig.getProperties();
+    const value = properties.getProperty(key);
+    if (!value) return null;
+    try {
+      return JSON.parse(value);
+    } catch (error) {
+      properties.deleteProperty(key);
+      return null;
+    }
+  }
+
+  /** @param {string} key @param {Object} value @private */
+  static putCachedTranslation_(key, value) {
+    const text = JSON.stringify(value);
+    if (text.length < 8500) {
+      AppConfig.getProperties().setProperty(key, text);
+    }
   }
 
   /** @param {string} text @return {string} @private */
