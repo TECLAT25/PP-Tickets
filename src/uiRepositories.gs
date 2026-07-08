@@ -7,17 +7,14 @@ class UiMessageReadRepository {
 
   /** @param {string} ticketId @return {Array<Object>} */
   listByTicketId(ticketId) {
-    if (this.sheet_.getLastRow() <= 1) {
-      return [];
-    }
-    const values = this.sheet_.getRange(
-      2, 1, this.sheet_.getLastRow() - 1, this.sheet_.getLastColumn()
-    ).getValues();
+    if (this.sheet_.getLastRow() <= 1) return [];
+    const values = this.sheet_.getRange(2, 1, this.sheet_.getLastRow() - 1, this.sheet_.getLastColumn()).getValues();
     return values
       .filter(function(row) {
         return String(UiSheetMapper.value(row, this.headers_, 'Ticket ID')) === String(ticketId);
       }, this)
       .map(function(row) {
+        const body = String(UiSheetMapper.value(row, this.headers_, 'Body Text') || UiSheetMapper.value(row, this.headers_, 'Body Preview') || '');
         return {
           id: String(UiSheetMapper.value(row, this.headers_, 'Message ID') || ''),
           gmailMessageId: String(UiSheetMapper.value(row, this.headers_, 'Gmail Message ID') || ''),
@@ -27,10 +24,9 @@ class UiMessageReadRepository {
           cc: String(UiSheetMapper.value(row, this.headers_, 'Cc') || ''),
           subject: String(UiSheetMapper.value(row, this.headers_, 'Subject') || ''),
           sentAt: UiSheetMapper.value(row, this.headers_, 'Sent At'),
-          body: String(
-            UiSheetMapper.value(row, this.headers_, 'Body Text') ||
-            UiSheetMapper.value(row, this.headers_, 'Body Preview') || ''
-          ),
+          body: body,
+          originalLanguage: String(UiSheetMapper.value(row, this.headers_, 'Original Language') || ''),
+          translatedBodyEs: String(UiSheetMapper.value(row, this.headers_, 'Translated Body ES') || ''),
           attachmentCount: Number(UiSheetMapper.value(row, this.headers_, 'Attachment Count') || 0),
           driveFolderId: String(UiSheetMapper.value(row, this.headers_, 'Drive Folder ID') || '')
         };
@@ -50,12 +46,8 @@ class UiCustomerReadRepository {
 
   /** @param {Object} ticket @return {Object|null} */
   findForTicket(ticket) {
-    if (this.sheet_.getLastRow() <= 1) {
-      return null;
-    }
-    const rows = this.sheet_.getRange(
-      2, 1, this.sheet_.getLastRow() - 1, this.sheet_.getLastColumn()
-    ).getValues();
+    if (this.sheet_.getLastRow() <= 1) return null;
+    const rows = this.sheet_.getRange(2, 1, this.sheet_.getLastRow() - 1, this.sheet_.getLastColumn()).getValues();
     const customerId = String(ticket.customerId || '');
     const email = String(ticket.customerEmail || '').toLowerCase();
     const row = rows.filter(function(candidate) {
@@ -63,9 +55,7 @@ class UiCustomerReadRepository {
       const candidateEmail = String(UiSheetMapper.value(candidate, this.headers_, 'Email') || '').toLowerCase();
       return (customerId && candidateId === customerId) || (email && candidateEmail === email);
     }, this)[0];
-    if (!row) {
-      return null;
-    }
+    if (!row) return null;
     return {
       id: String(UiSheetMapper.value(row, this.headers_, 'Customer ID') || ''),
       email: String(UiSheetMapper.value(row, this.headers_, 'Email') || ''),
@@ -86,11 +76,7 @@ class UiSheetMapper {
   static headerMap(sheet) {
     const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
     const map = {};
-    headers.forEach(function(header, index) {
-      if (header) {
-        map[header] = index;
-      }
-    });
+    headers.forEach(function(header, index) { if (header) map[header] = index; });
     return map;
   }
 
