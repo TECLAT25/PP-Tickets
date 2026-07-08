@@ -36,6 +36,26 @@ function syncUiGmail() {
 }
 
 /**
+ * Translates the synchronized message bodies for a ticket to Spanish.
+ * @param {string} ticketId
+ * @return {{ok: boolean, data: Object}|Object}
+ */
+function translateUiTicketToSpanish(ticketId) {
+  try {
+    const ticketRepository = new SheetTicketRepository();
+    const ticket = ticketRepository.findById(ticketId);
+    if (!ticket) {
+      throw new AppError('Ticket not found: ' + ticketId, 'TICKET_NOT_FOUND', {ticketId: ticketId});
+    }
+    const messages = new UiMessageReadRepository().listByTicketId(ticketId);
+    const result = TranslationService.translateMessagesToSpanish(messages);
+    return {ok: true, data: UiSerializer.toClient({ticketId: ticketId, messages: result})};
+  } catch (error) {
+    return AppUtils.errorResponse(error);
+  }
+}
+
+/**
  * Updates the workflow status of a ticket from the UI.
  * @param {string} ticketId
  * @param {string} status
