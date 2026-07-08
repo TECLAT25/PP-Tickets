@@ -10,7 +10,9 @@
       '.reply-box.is-open{max-height:260px;overflow:auto}' +
       '.reply-box-header{display:flex;align-items:center;justify-content:space-between;gap:12px}' +
       '.reply-box h3{margin:0;font-size:15px}' +
-      '.reply-toggle{border:1px solid var(--outline-variant);border-radius:16px;background:var(--surface-bright);padding:5px 10px;cursor:pointer;font-size:12px}' +
+      '.reply-header-actions{display:flex;align-items:center;gap:6px}' +
+      '.reply-toggle,.mail-customer-button{border:1px solid var(--outline-variant);border-radius:16px;background:var(--surface-bright);padding:5px 10px;cursor:pointer;font-size:12px;color:var(--on-surface);text-decoration:none}' +
+      '.mail-customer-button{font-weight:800}' +
       '.reply-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}' +
       '.reply-chip{border:1px solid var(--outline-variant);border-radius:16px;background:var(--surface-bright);padding:6px 10px;cursor:pointer;font-size:12px}' +
       '.reply-box textarea{width:100%;min-height:96px;resize:vertical;border:1px solid var(--outline-variant);border-radius:12px;padding:12px;background:var(--surface-bright);color:var(--on-surface);font:inherit}' +
@@ -21,6 +23,17 @@
   function ticketId() {
     var eyebrow = document.querySelector('#ticket-detail .detail-header .eyebrow');
     return eyebrow ? eyebrow.textContent.trim() : '';
+  }
+
+  function customerEmail() {
+    var fields = document.querySelectorAll('#ticket-detail .detail-field');
+    for (var index = 0; index < fields.length; index += 1) {
+      var title = fields[index].querySelector('dt');
+      var value = fields[index].querySelector('dd');
+      if (title && value && title.textContent.trim().toLowerCase() === 'customer') return value.textContent.trim();
+    }
+    var row = document.querySelector('[data-ticket-id].is-selected td:nth-child(4)');
+    return row ? row.textContent.trim() : '';
   }
 
   function insert(textarea, value) {
@@ -52,9 +65,11 @@
     var detail = document.getElementById('ticket-detail');
     if (!detail || detail.querySelector('.reply-box') || !ticketId()) return;
 
+    var email = customerEmail();
+    var mailLink = email && email !== '—' ? 'mailto:' + encodeURIComponent(email) : '#';
     var box = document.createElement('section');
     box.className = 'reply-box';
-    box.innerHTML = '<div class="reply-box-header"><h3>Quick reply</h3><button class="reply-toggle" type="button">Open reply editor</button></div>' +
+    box.innerHTML = '<div class="reply-box-header"><h3>Quick reply</h3><div class="reply-header-actions"><a class="mail-customer-button" href="' + mailLink + '" target="_blank" rel="noopener">Mail customer</a><button class="reply-toggle" type="button">Open reply editor</button></div></div>' +
       '<div class="reply-toolbar"></div>' +
       '<textarea placeholder="Write the response draft here..."></textarea>' +
       '<div class="reply-actions"><button class="text-button" type="button" data-reply-clear>Clear</button><button class="tonal-button" type="button" data-reply-draft>Create Gmail draft</button></div>';
