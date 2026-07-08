@@ -13,10 +13,9 @@
     style.textContent = '.ticket-sortbar{grid-template-columns:repeat(2,minmax(0,1fr))!important}' +
       '.ticket-sortbar .sort-button:nth-child(n+3){display:none!important}' +
       '.support-detail{grid-template-rows:auto minmax(0,1fr) 156px!important}' +
-      '.support-detail .detail-header{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;gap:6px!important}' +
-      '.support-detail .detail-header h2{grid-column:1 / span 2!important;max-height:36px!important;overflow:hidden!important}' +
-      '.support-detail .detail-chips{grid-column:1!important}' +
-      '.translate-toggle{grid-column:2!important;grid-row:1!important;display:inline-flex;align-items:center;gap:5px;margin-left:6px;min-height:24px;border:1px solid var(--outline-variant);border-radius:14px;background:var(--surface-bright);color:var(--on-surface);cursor:pointer;font-size:10px;font-weight:800;padding:0 9px}' +
+      '.support-detail .detail-header h2{max-height:36px!important;overflow:hidden!important}' +
+      '.translate-toggle{display:inline-flex;align-items:center;gap:5px;min-height:27px;border:1px solid var(--outline-variant);border-radius:16px;background:var(--surface-bright);color:var(--on-surface);cursor:pointer;font-size:12px;font-weight:800;padding:0 10px}' +
+      '.reply-header-actions .translate-toggle{margin-left:0}' +
       '.translate-toggle.is-active{background:var(--primary-container);color:var(--on-primary-container);border-color:var(--primary)}' +
       '.translate-toggle[disabled]{opacity:.6;cursor:wait}' +
       '.email-body.is-translated::before{content:"Traducido al español";display:block;margin-bottom:6px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--primary)}' +
@@ -56,7 +55,7 @@
     if (!snackbar) return;
     snackbar.textContent = message;
     snackbar.hidden = false;
-    window.setTimeout(function () { snackbar.hidden = true; }, 6000);
+    window.setTimeout(function () { snackbar.hidden = true; }, 9000);
   }
 
   function patchSortbar() {
@@ -116,9 +115,10 @@
   }
 
   function ensureTranslateButton() {
-    var header = document.querySelector('#ticket-detail .detail-header');
     var id = ticketId();
-    if (!header || !id || header.querySelector('.translate-toggle')) return;
+    if (!id) return;
+    var actions = document.querySelector('#ticket-detail .reply-header-actions');
+    if (!actions || actions.querySelector('.translate-toggle')) return;
 
     var button = document.createElement('button');
     button.type = 'button';
@@ -126,7 +126,7 @@
     button.textContent = translationModeByTicket[id] === 'es' ? '🌐 Español' : '🌐 Original';
     if (translationModeByTicket[id] === 'es') button.classList.add('is-active');
     button.addEventListener('click', function () { toggleTranslation(button); });
-    header.appendChild(button);
+    actions.insertBefore(button, actions.firstChild ? actions.firstChild.nextSibling : null);
   }
 
   function rememberOriginalBodies(id) {
@@ -156,12 +156,13 @@
           return message.translatedBody || message.body || '';
         });
       }
+      if (!translatedBodiesByTicket[id].length) throw new Error('No hay mensajes sincronizados para traducir.');
       applyBodies(translatedBodiesByTicket[id], true);
       translationModeByTicket[id] = 'es';
       button.textContent = '🌐 Español';
       button.classList.add('is-active');
     } catch (error) {
-      toast(error.message || String(error));
+      toast('Traducción no disponible: ' + (error.message || String(error)));
       button.textContent = '🌐 Original';
     } finally {
       button.disabled = false;
