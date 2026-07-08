@@ -12,10 +12,22 @@
     style.id = 'dashboard-enhancements-css';
     style.textContent = '.ticket-sortbar{grid-template-columns:repeat(2,minmax(0,1fr))!important}' +
       '.ticket-sortbar .sort-button:nth-child(n+3){display:none!important}' +
-      '.translate-toggle{display:inline-flex;align-items:center;gap:5px;margin-left:6px;min-height:24px;border:1px solid var(--outline-variant);border-radius:14px;background:var(--surface-bright);color:var(--on-surface);cursor:pointer;font-size:10px;font-weight:800;padding:0 9px}' +
+      '.support-detail{grid-template-rows:auto minmax(0,1fr) 156px!important}' +
+      '.support-detail .detail-header{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;gap:6px!important}' +
+      '.support-detail .detail-header h2{grid-column:1 / span 2!important;max-height:36px!important;overflow:hidden!important}' +
+      '.support-detail .detail-chips{grid-column:1!important}' +
+      '.translate-toggle{grid-column:2!important;grid-row:1!important;display:inline-flex;align-items:center;gap:5px;margin-left:6px;min-height:24px;border:1px solid var(--outline-variant);border-radius:14px;background:var(--surface-bright);color:var(--on-surface);cursor:pointer;font-size:10px;font-weight:800;padding:0 9px}' +
       '.translate-toggle.is-active{background:var(--primary-container);color:var(--on-primary-container);border-color:var(--primary)}' +
       '.translate-toggle[disabled]{opacity:.6;cursor:wait}' +
-      '.email-body.is-translated::before{content:"Traducido al español";display:block;margin-bottom:6px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--primary)}';
+      '.email-body.is-translated::before{content:"Traducido al español";display:block;margin-bottom:6px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--primary)}' +
+      '.reply-box{height:156px!important;max-height:156px!important}' +
+      '.reply-box.is-open{height:230px!important;max-height:230px!important}' +
+      '.reply-box textarea{min-height:58px!important}' +
+      '.reply-toolbar{margin:6px 0!important}' +
+      '.reply-actions{margin-top:6px!important}' +
+      '.email-chain-heading h3{font-size:13px!important}' +
+      '.email-message{font-size:12px!important}' +
+      '.email-body{font-size:12px!important;line-height:1.48!important}';
     document.head.appendChild(style);
   }
 
@@ -61,7 +73,7 @@
       button.className = 'sort-button';
       button.dataset.kind = config.kind;
       button.dataset.value = config.value;
-      button.textContent = config.label + ' ↓';
+      button.textContent = config.label + (config.value.indexOf('_asc') !== -1 ? ' ↑' : ' ↓');
       button.addEventListener('click', function () {
         var current = button.dataset.value;
         button.dataset.value = config.next[current] || config.value;
@@ -71,7 +83,7 @@
         });
         button.classList.add('is-active');
         button.textContent = config.label + (button.dataset.value.indexOf('_asc') !== -1 ? ' ↑' : ' ↓');
-        emulateLegacySort(button.dataset.value);
+        sortVisibleRows(button.dataset.value);
       });
       bar.appendChild(button);
     });
@@ -80,17 +92,6 @@
       first.classList.add('is-active');
       first.textContent = 'Fecha ↓';
     }
-  }
-
-  function emulateLegacySort(value) {
-    var legacy = document.createElement('button');
-    legacy.dataset.sort = value;
-    legacy.style.display = 'none';
-    legacy.className = 'sort-button';
-    document.body.appendChild(legacy);
-    // The main script listens only on its own buttons. Re-sort locally instead.
-    sortVisibleRows(value);
-    legacy.remove();
   }
 
   function sortVisibleRows(value) {
@@ -140,7 +141,7 @@
     if (!id) return;
     rememberOriginalBodies(id);
     if (translationModeByTicket[id] === 'es') {
-      applyBodies(id, originalBodiesByTicket[id], false);
+      applyBodies(originalBodiesByTicket[id], false);
       translationModeByTicket[id] = 'original';
       button.textContent = '🌐 Original';
       button.classList.remove('is-active');
@@ -155,7 +156,7 @@
           return message.translatedBody || message.body || '';
         });
       }
-      applyBodies(id, translatedBodiesByTicket[id], true);
+      applyBodies(translatedBodiesByTicket[id], true);
       translationModeByTicket[id] = 'es';
       button.textContent = '🌐 Español';
       button.classList.add('is-active');
@@ -167,7 +168,7 @@
     }
   }
 
-  function applyBodies(id, bodies, translated) {
+  function applyBodies(bodies, translated) {
     Array.prototype.slice.call(document.querySelectorAll('#ticket-detail .email-body')).forEach(function (node, index) {
       node.textContent = bodies[index] || '';
       node.classList.toggle('is-translated', Boolean(translated));
