@@ -1,7 +1,7 @@
 /** Immutable application constants. @const */
 const APP = Object.freeze({
   NAME: 'PocketPiano ERP',
-  VERSION: '2.3.1',
+  VERSION: '2.3.2',
   LOCK_TIMEOUT_MS: 30000,
   LOG_RETENTION_DAYS: 90,
   PROPERTY_KEYS: Object.freeze({
@@ -36,7 +36,8 @@ const SHEET_SCHEMAS = Object.freeze([
   ]), color: '#D93025'}),
   Object.freeze({name: 'Messages', headers: Object.freeze([
     'Message ID', 'Ticket ID', 'Gmail Message ID', 'Direction', 'From', 'To', 'Cc',
-    'Subject', 'Sent At', 'Body Preview', 'Attachment Count', 'Drive Folder ID', 'Created At', 'Body Text'
+    'Subject', 'Sent At', 'Body Preview', 'Attachment Count', 'Drive Folder ID', 'Created At',
+    'Body Text', 'Original Language', 'Translated Body ES'
   ]), color: '#F9AB00'}),
   Object.freeze({name: 'Customers', headers: Object.freeze([
     'Customer ID', 'Email', 'Name', 'Phone', 'Locale', 'Company', 'Created At', 'Updated At', 'Notes'
