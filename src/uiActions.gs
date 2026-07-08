@@ -36,7 +36,8 @@ function syncUiGmail() {
 }
 
 /**
- * Translates the synchronized message bodies for a ticket to Spanish.
+ * Translates the synchronized message bodies for a ticket to Spanish and persists
+ * the results in the Messages sheet.
  * @param {string} ticketId
  * @return {{ok: boolean, data: Object}|Object}
  */
@@ -49,18 +50,23 @@ function translateUiTicketToSpanish(ticketId) {
     }
     const messages = new UiMessageReadRepository().listByTicketId(ticketId);
     const result = TranslationService.translateMessagesToSpanish(messages);
+    const messageRepository = new SheetMessageRepository();
+    result.forEach(function(message) {
+      if (message.id && message.translatedBody) {
+        messageRepository.updateTranslation(
+          message.id,
+          message.detectedLanguage || message.originalLanguage || '',
+          message.translatedBody
+        );
+      }
+    });
     return {ok: true, data: UiSerializer.toClient({ticketId: ticketId, messages: result})};
   } catch (error) {
     return AppUtils.errorResponse(error);
   }
 }
 
-/**
- * Updates the workflow status of a ticket from the UI.
- * @param {string} ticketId
- * @param {string} status
- * @return {{ok: boolean, data: Object}|Object}
- */
+/** @param {string} ticketId @param {string} status @return {{ok: boolean, data: Object}|Object} */
 function updateUiTicketStatus(ticketId, status) {
   try {
     const result = updateTicketStatus(ticketId, status);
@@ -70,12 +76,7 @@ function updateUiTicketStatus(ticketId, status) {
   }
 }
 
-/**
- * Updates the priority of a ticket from the UI.
- * @param {string} ticketId
- * @param {string} priority
- * @return {{ok: boolean, data: Object}|Object}
- */
+/** @param {string} ticketId @param {string} priority @return {{ok: boolean, data: Object}|Object} */
 function updateUiTicketPriority(ticketId, priority) {
   try {
     const result = updateTicketPriority(ticketId, priority);
@@ -85,12 +86,7 @@ function updateUiTicketPriority(ticketId, priority) {
   }
 }
 
-/**
- * Updates the category of a ticket from the UI.
- * @param {string} ticketId
- * @param {string} category
- * @return {{ok: boolean, data: Object}|Object}
- */
+/** @param {string} ticketId @param {string} category @return {{ok: boolean, data: Object}|Object} */
 function updateUiTicketCategory(ticketId, category) {
   try {
     const result = updateTicketCategory(ticketId, category);
@@ -100,12 +96,7 @@ function updateUiTicketCategory(ticketId, category) {
   }
 }
 
-/**
- * Assigns a ticket to a person or clears the assignee.
- * @param {string} ticketId
- * @param {string} assignedTo
- * @return {{ok: boolean, data: Object}|Object}
- */
+/** @param {string} ticketId @param {string} assignedTo @return {{ok: boolean, data: Object}|Object} */
 function assignUiTicket(ticketId, assignedTo) {
   try {
     const result = assignTicket(ticketId, assignedTo || '');
@@ -115,12 +106,7 @@ function assignUiTicket(ticketId, assignedTo) {
   }
 }
 
-/**
- * Updates comma-separated ticket tags from the UI.
- * @param {string} ticketId
- * @param {string} tags
- * @return {{ok: boolean, data: Object}|Object}
- */
+/** @param {string} ticketId @param {string} tags @return {{ok: boolean, data: Object}|Object} */
 function updateUiTicketTags(ticketId, tags) {
   try {
     const result = updateTicketTags(ticketId, tags || '');
