@@ -1,3 +1,10 @@
+﻿# fix-filter-counts-order.ps1
+$ErrorActionPreference = "Stop"
+$root = Get-Location
+$enc = New-Object System.Text.UTF8Encoding($false)
+
+Write-Host "Escribiendo html/Scripts.html..." -ForegroundColor Cyan
+$v0 = @'
 <script>
 (function () {
   'use strict';
@@ -541,3 +548,9 @@
   loadState();
 })();
 </script>
+'@
+[System.IO.File]::WriteAllText((Join-Path $root "html\Scripts.html"), $v0, $enc)
+Write-Host "  [OK]" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "Ejecuta: npm test  y  npm run deploy" -ForegroundColor Cyan
