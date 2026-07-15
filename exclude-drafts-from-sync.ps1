@@ -1,3 +1,10 @@
+﻿# exclude-drafts-from-sync.ps1
+$ErrorActionPreference = "Stop"
+$root = Get-Location
+$enc = New-Object System.Text.UTF8Encoding($false)
+
+Write-Host "Escribiendo src/gmail.gs..." -ForegroundColor Cyan
+$v0 = @'
 /**
  * Synchronizes normalized Gmail threads with ticket and message repositories.
  * All infrastructure is injected so synchronization behavior can be tested
@@ -442,3 +449,13 @@ function syncGmail() {
     lock.releaseLock();
   }
 }
+'@
+[System.IO.File]::WriteAllText((Join-Path $root "src\gmail.gs"), $v0, $enc)
+Write-Host "  [OK]" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "Verificando..." -ForegroundColor Cyan
+Select-String -Path src\gmail.gs -Pattern "draftMessageIds_"
+
+Write-Host ""
+Write-Host "Si salieron lineas arriba, ejecuta: npm test  y  npm run deploy" -ForegroundColor Cyan
