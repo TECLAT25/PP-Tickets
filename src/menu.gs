@@ -45,7 +45,8 @@ function syncGmailFromMenu() {
       'Adjuntos guardados: ' + result.attachments + '\n' +
       'Hilos fallidos: ' + result.failedThreads + '\n' +
       'Remitentes excluidos: ' + (result.excludedThreads || 0) + '\n' +
-      'Tickets huérfanos vinculados: ' + (result.linkedTickets || 0),
+      'Tickets huérfanos vinculados: ' + (result.linkedTickets || 0) + '\n' +
+      'Tickets fusionados (mismo cliente/asunto): ' + (result.mergedTickets || 0),
       ui.ButtonSet.OK
     );
   } catch (error) {

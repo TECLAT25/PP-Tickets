@@ -48,7 +48,8 @@
       result.attachments + ' adjuntos guardados, ' +
       result.failedThreads + ' hilos fallidos, ' +
       (result.excludedThreads || 0) + ' remitentes excluidos, ' +
-      (result.linkedTickets || 0) + ' tickets huérfanos vinculados.';
+      (result.linkedTickets || 0) + ' tickets huérfanos vinculados, ' +
+      (result.mergedTickets || 0) + ' tickets fusionados.';
   }
 
   function clickRefreshButtons() {
