@@ -1,0 +1,107 @@
+<script>
+(function () {
+  'use strict';
+
+  function callServer(functionName) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      const runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      runner[functionName].apply(runner, args);
+    });
+  }
+
+  function unwrap(response) {
+    if (!response || response.ok !== true) {
+      const error = response && response.error ? response.error : {};
+      throw new Error(error.message || 'El servidor devolvió una respuesta no válida.');
+    }
+    return response.data;
+  }
+
+  const ENUM_LABELS = {
+    NEW: 'Nuevo', OPEN: 'Abierto', PENDING_CUSTOMER: 'Esperando cliente', RESOLVED: 'Resuelto', CLOSED: 'Cerrado'
+  };
+
+  function injectStyles() {
+    if (document.getElementById('related-tickets-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'related-tickets-styles';
+    style.textContent = [
+      '.related-tickets-banner { margin-top: 8px; padding: 10px 14px; border-radius: 12px; background: var(--tertiary-container, var(--surface-container)); font-size: 12px; }',
+      '.related-tickets-banner strong { display: block; margin-bottom: 6px; }',
+      '.related-tickets-list { display: flex; flex-wrap: wrap; gap: 6px; }',
+      '.related-ticket-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 14px; border: 1px solid var(--outline-variant); background: var(--surface-bright); cursor: pointer; font-size: 11px; color: var(--on-surface); }',
+      '.related-ticket-chip:hover { background: var(--surface-container); }',
+      '.related-ticket-chip span { color: var(--on-surface-variant); }'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  function selectedTicketId() {
+    const selected = document.querySelector('[data-ticket-id].is-selected');
+    if (selected && selected.dataset.ticketId) return selected.dataset.ticketId;
+    const eyebrow = document.querySelector('#ticket-detail .detail-header .eyebrow');
+    return eyebrow ? eyebrow.textContent.trim() : '';
+  }
+
+  function openTicket(ticketId) {
+    const searchInput = document.getElementById('global-search');
+    if (searchInput) {
+      searchInput.value = ticketId;
+      searchInput.dispatchEvent(new Event('input', {bubbles: true}));
+    }
+    const ticketsNav = document.querySelector('[data-view="tickets"]');
+    if (ticketsNav) ticketsNav.click();
+  }
+
+  function ensureBanner() {
+    const header = document.querySelector('#ticket-detail .detail-header');
+    if (!header || header.querySelector('.related-tickets-banner') || header.dataset.relatedChecked === 'true') return;
+    header.dataset.relatedChecked = 'true';
+
+    const ticketId = selectedTicketId();
+    if (!ticketId) return;
+
+    callServer('findUiRelatedTickets', ticketId).then(unwrap).then(function (related) {
+      if (!related || !related.length) return;
+      injectStyles();
+
+      const banner = document.createElement('div');
+      banner.className = 'related-tickets-banner';
+      const title = document.createElement('strong');
+      title.textContent = 'Este cliente tiene otro' + (related.length === 1 ? '' : 's') + ' ' + related.length + ' ticket' + (related.length === 1 ? '' : 's') + ' con un asunto parecido:';
+      banner.appendChild(title);
+
+      const list = document.createElement('div');
+      list.className = 'related-tickets-list';
+      related.forEach(function (ticket) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'related-ticket-chip';
+        chip.innerHTML = '<strong>' + ticket.id + '</strong><span>' + (ENUM_LABELS[ticket.status] || ticket.status) + '</span>';
+        chip.addEventListener('click', function () { openTicket(ticket.id); });
+        list.appendChild(chip);
+      });
+      banner.appendChild(list);
+
+      header.appendChild(banner);
+    }).catch(function () {
+      // Silently skip the banner if this lookup fails — not critical to the ticket workflow.
+    });
+  }
+
+  const observer = new MutationObserver(function () {
+    ensureBanner();
+  });
+
+  function start() {
+    const panel = document.getElementById('ticket-detail');
+    if (!panel) return;
+    observer.observe(panel, {childList: true, subtree: true});
+    ensureBanner();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>

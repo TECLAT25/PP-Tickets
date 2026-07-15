@@ -523,3 +523,35 @@ function getUiTicketsCreatedByMonth(year) {
     return AppUtils.errorResponse(error);
   }
 }
+
+/**
+ * Finds other tickets from the same customer with a similar (normalized)
+ * subject — different Gmail threads about what looks like the same topic.
+ * Used to warn the agent in the ticket detail panel.
+ * @param {string} ticketId
+ * @return {{ok: boolean, data: Array<{id: string, subject: string, status: string}>}|Object}
+ */
+function findUiRelatedTickets(ticketId) {
+  try {
+    const ticket = new SheetTicketRepository().findById(ticketId);
+    if (!ticket || !ticket.customerEmail || !ticket.subject) return {ok: true, data: []};
+
+    const normalize = function(value) {
+      return String(value || '')
+        .replace(/^(re|fwd?|fw)\s*:\s*/gi, '')
+        .trim()
+        .toLowerCase();
+    };
+    const targetSubject = normalize(ticket.subject);
+    if (!targetSubject) return {ok: true, data: []};
+
+    const result = new SheetTicketRepository().search({customerEmail: ticket.customerEmail, limit: 50});
+    const related = result.items
+      .filter(function(candidate) { return candidate.id !== ticketId && normalize(candidate.subject) === targetSubject; })
+      .map(function(candidate) { return {id: candidate.id, subject: candidate.subject, status: candidate.status}; });
+
+    return {ok: true, data: related};
+  } catch (error) {
+    return AppUtils.errorResponse(error);
+  }
+}
