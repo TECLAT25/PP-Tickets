@@ -1,3 +1,12 @@
+﻿# exclude-senders.ps1
+# Excluye no-reply@accounts.google.com y mbe@mbe3024.es de crear
+# tickets al sincronizar Gmail (configurable via Settings > EXCLUDED_SENDERS).
+$ErrorActionPreference = "Stop"
+$root = Get-Location
+$enc = New-Object System.Text.UTF8Encoding($false)
+
+Write-Host "Escribiendo src\gmail.gs..." -ForegroundColor Cyan
+$v0 = @'
 /**
  * Synchronizes normalized Gmail threads with ticket and message repositories.
  * All infrastructure is injected so synchronization behavior can be tested
@@ -373,3 +382,261 @@ function syncGmail() {
     lock.releaseLock();
   }
 }
+'@
+[System.IO.File]::WriteAllText((Join-Path $root "src\gmail.gs"), $v0, $enc)
+Write-Host "  [OK]" -ForegroundColor Green
+
+Write-Host "Escribiendo src\menu.gs..." -ForegroundColor Cyan
+$v1 = @'
+/** Creates the spreadsheet menu when the container opens. */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu(APP.NAME)
+    .addItem('Abrir aplicación', 'showApplicationDialog')
+    .addSeparator()
+    .addItem('Instalar o reparar', 'installFromMenu')
+    .addItem('Sincronizar Gmail ahora', 'syncGmailFromMenu')
+    .addItem('Activar sincronización en segundo plano', 'enableBackgroundSyncFromMenu')
+    .addItem('Desactivar sincronización en segundo plano', 'disableBackgroundSyncFromMenu')
+    .addSeparator()
+    .addItem('Actualizar panel', 'refreshDashboard')
+    .addSeparator()
+    .addItem('Acerca de', 'showAbout')
+    .addToUi();
+}
+
+/** @param {GoogleAppsScript.Events.SheetsOnOpen=} event */
+function onInstall(event) {
+  onOpen(event);
+}
+
+/** Runs installation with user-facing error handling. */
+function installFromMenu() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    const result = install();
+    ui.alert(APP.NAME, 'Instalación completada. La versión ' + result.version + ' está lista.', ui.ButtonSet.OK);
+  } catch (error) {
+    const response = AppUtils.errorResponse(error);
+    ui.alert(APP.NAME, response.error.message + '\n\nReferencia: ' + response.correlationId, ui.ButtonSet.OK);
+  }
+}
+
+/** Runs Gmail synchronization from the spreadsheet menu. */
+function syncGmailFromMenu() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    const result = syncGmail();
+    ui.alert(
+      APP.NAME,
+      'Sincronización de Gmail completada.\n\n' +
+      'Tickets creados: ' + result.createdTickets + '\n' +
+      'Mensajes añadidos: ' + result.createdMessages + '\n' +
+      'Adjuntos guardados: ' + result.attachments + '\n' +
+      'Hilos fallidos: ' + result.failedThreads + '\n' +
+      'Remitentes excluidos: ' + (result.excludedThreads || 0),
+      ui.ButtonSet.OK
+    );
+  } catch (error) {
+    const response = AppUtils.errorResponse(error);
+    ui.alert(APP.NAME, response.error.message + '\n\nReferencia: ' + response.correlationId, ui.ButtonSet.OK);
+  }
+}
+
+/** Enables managed background triggers from the spreadsheet menu. */
+function enableBackgroundSyncFromMenu() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    TriggerManager.ensureMaintenanceTrigger();
+    TriggerManager.ensureGmailSyncTrigger();
+    ui.alert(APP.NAME, 'La sincronización en segundo plano está activada.', ui.ButtonSet.OK);
+  } catch (error) {
+    const response = AppUtils.errorResponse(error);
+    ui.alert(APP.NAME, response.error.message + '\n\nReferencia: ' + response.correlationId, ui.ButtonSet.OK);
+  }
+}
+
+/** Disables managed background triggers from the spreadsheet menu. */
+function disableBackgroundSyncFromMenu() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    TriggerManager.removeManagedTriggers();
+    ui.alert(APP.NAME, 'La sincronización en segundo plano está desactivada.', ui.ButtonSet.OK);
+  } catch (error) {
+    const response = AppUtils.errorResponse(error);
+    ui.alert(APP.NAME, response.error.message + '\n\nReferencia: ' + response.correlationId, ui.ButtonSet.OK);
+  }
+}
+
+/** @return {GoogleAppsScript.HTML.HtmlOutput} @private */
+function createApplicationHtml_() {
+  const template = HtmlService.createTemplateFromFile('html/Index');
+  template.bootstrap = getApplicationBootstrap();
+  return template.evaluate()
+    .setTitle(APP.NAME)
+    .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+}
+
+/** Opens the HTMLService application in a large modal dialog. */
+function showApplicationDialog() {
+  try {
+    SpreadsheetApp.getUi().showModalDialog(
+      createApplicationHtml_().setWidth(2600).setHeight(1500),
+      ' '
+    );
+  } catch (error) {
+    const response = AppUtils.errorResponse(error);
+    SpreadsheetApp.getUi().alert(response.error.message + '\nReferencia: ' + response.correlationId);
+  }
+}
+
+/** Displays release information. */
+function showAbout() {
+  const version = getVersion();
+  SpreadsheetApp.getUi().alert(
+    APP.NAME,
+    version.name + ' v' + version.version + '\nGoogle Apps Script ' + version.runtime,
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
+}
+
+/** Refreshes the Dashboard installation metrics. */
+function refreshDashboard() {
+  const spreadsheet = AppConfig.getSpreadsheet(false);
+  AppInstaller.refreshDashboard_(spreadsheet);
+  AppLogger.info('Dashboard refreshed.');
+}
+
+/**
+ * Returns server state required by HTMLService clients.
+ * @return {{ok: boolean, app: Object, spreadsheet: Object, user: Object}}
+ */
+function getApplicationBootstrap() {
+  const spreadsheet = AppConfig.getSpreadsheet(false);
+  return {
+    ok: true,
+    app: getVersion(),
+    spreadsheet: {
+      id: spreadsheet.getId(),
+      name: spreadsheet.getName(),
+      url: spreadsheet.getUrl()
+    },
+    user: {email: AppUtils.currentUserEmail()}
+  };
+}
+
+/** @return {GoogleAppsScript.HTML.HtmlOutput} */
+function doGet() {
+  try {
+    const template = HtmlService.createTemplateFromFile('html/Index');
+    template.bootstrap = getApplicationBootstrap();
+    return template.evaluate()
+      .setTitle(APP.NAME)
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.SAMEORIGIN);
+  } catch (error) {
+    const response = AppUtils.errorResponse(error);
+    return HtmlService.createHtmlOutput(
+      '<h1>' + AppUtils.escapeHtml(APP.NAME) + '</h1>' +
+      '<p>' + AppUtils.escapeHtml(response.error.message) + '</p>' +
+      '<p>Referencia: ' + AppUtils.escapeHtml(response.correlationId) + '</p>'
+    ).setTitle(APP.NAME);
+  }
+}
+'@
+[System.IO.File]::WriteAllText((Join-Path $root "src\menu.gs"), $v1, $enc)
+Write-Host "  [OK]" -ForegroundColor Green
+
+Write-Host "Escribiendo html\SyncScripts.html..." -ForegroundColor Cyan
+$v2 = @'
+<script>
+(function () {
+  'use strict';
+
+  function callServer(functionName) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      const runner = google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject);
+      runner[functionName].apply(runner, args);
+    });
+  }
+
+  function unwrap(response) {
+    if (!response || response.ok !== true) {
+      const error = response && response.error ? response.error : {};
+      throw new Error(error.message || 'El servidor devolvió una respuesta no válida.');
+    }
+    return response.data;
+  }
+
+  function showSnack(message) {
+    const snackbar = document.getElementById('snackbar');
+    if (!snackbar) return;
+    snackbar.textContent = message;
+    snackbar.hidden = false;
+    window.setTimeout(function () { snackbar.hidden = true; }, 7000);
+  }
+
+  function setButtonBusy(button, busy) {
+    if (!button) return;
+    if (busy) {
+      button.dataset.previousHtml = button.innerHTML;
+      button.disabled = true;
+      button.innerHTML = '<span class="spinner" aria-hidden="true"></span>Sincronizando…';
+    } else {
+      button.disabled = false;
+      if (button.dataset.previousHtml) button.innerHTML = button.dataset.previousHtml;
+      delete button.dataset.previousHtml;
+    }
+  }
+
+  function summaryText(result) {
+    return 'Sincronización de Gmail completada: ' +
+      result.createdTickets + ' tickets creados, ' +
+      result.createdMessages + ' mensajes añadidos, ' +
+      result.attachments + ' adjuntos guardados, ' +
+      result.failedThreads + ' hilos fallidos, ' +
+      (result.excludedThreads || 0) + ' remitentes excluidos.';
+  }
+
+  function clickRefreshButtons() {
+    document.querySelectorAll('[data-action="refresh"]').forEach(function (button) {
+      button.click();
+    });
+  }
+
+  function start() {
+    const button = document.getElementById('sync-gmail');
+    if (!button) return;
+    button.addEventListener('click', async function () {
+      setButtonBusy(button, true);
+      try {
+        const result = unwrap(await callServer('syncUiGmail'));
+        showSnack(summaryText(result));
+        clickRefreshButtons();
+      } catch (error) {
+        showSnack(error && error.message ? error.message : String(error));
+      } finally {
+        setButtonBusy(button, false);
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+})();
+</script>
+'@
+[System.IO.File]::WriteAllText((Join-Path $root "html\SyncScripts.html"), $v2, $enc)
+Write-Host "  [OK]" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "Verificando..." -ForegroundColor Cyan
+Select-String -Path src\gmail.gs -Pattern "isExcludedSender_"
+
+Write-Host ""
+Write-Host "Si salio arriba, ejecuta: npm test  y  npm run deploy" -ForegroundColor Cyan

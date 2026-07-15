@@ -43,7 +43,8 @@ function syncGmailFromMenu() {
       'Tickets creados: ' + result.createdTickets + '\n' +
       'Mensajes añadidos: ' + result.createdMessages + '\n' +
       'Adjuntos guardados: ' + result.attachments + '\n' +
-      'Hilos fallidos: ' + result.failedThreads,
+      'Hilos fallidos: ' + result.failedThreads + '\n' +
+      'Remitentes excluidos: ' + (result.excludedThreads || 0),
       ui.ButtonSet.OK
     );
   } catch (error) {

@@ -46,7 +46,8 @@
       result.createdTickets + ' tickets creados, ' +
       result.createdMessages + ' mensajes añadidos, ' +
       result.attachments + ' adjuntos guardados, ' +
-      result.failedThreads + ' hilos fallidos.';
+      result.failedThreads + ' hilos fallidos, ' +
+      (result.excludedThreads || 0) + ' remitentes excluidos.';
   }
 
   function clickRefreshButtons() {
