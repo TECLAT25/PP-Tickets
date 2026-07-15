@@ -1,3 +1,10 @@
+﻿# fix-invalid-from-argument.ps1
+$ErrorActionPreference = "Stop"
+$root = Get-Location
+$enc = New-Object System.Text.UTF8Encoding($false)
+
+Write-Host "Escribiendo src/drafts.gs..." -ForegroundColor Cyan
+$v0 = @'
 /**
  * Gmail draft generation for support tickets.
  *
@@ -211,3 +218,9 @@ function createDraftReplyService_() {
 function createDraftForTicket(ticketId, templateKey, customBody) {
   return createDraftReplyService_().createForTicket(ticketId, templateKey || 'DEFAULT_SUPPORT_REPLY', customBody);
 }
+'@
+[System.IO.File]::WriteAllText((Join-Path $root "src\drafts.gs"), $v0, $enc)
+Write-Host "  [OK]" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "Ejecuta: npm test  y  npm run deploy" -ForegroundColor Cyan
