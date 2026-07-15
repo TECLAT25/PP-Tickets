@@ -83,6 +83,16 @@
       .map(function (key) { return [key, counts[key]]; })
       .sort(function (a, b) { return b[1] - a[1]; });
 
+    if (!entries.length) {
+      const empty = document.createElement('div');
+      empty.className = 'st-empty';
+      empty.style.padding = '4px 0';
+      empty.style.textAlign = 'left';
+      empty.textContent = 'Sin datos todavía.';
+      section.appendChild(empty);
+      return section;
+    }
+
     entries.forEach(function (entry) {
       const key = entry[0];
       const count = entry[1];
@@ -123,6 +133,8 @@
     body.appendChild(breakdownSection('Por estado', stats.byStatus, stats.total));
     body.appendChild(breakdownSection('Por prioridad', stats.byPriority, stats.total));
     body.appendChild(breakdownSection('Por categoría', stats.byCategory, stats.total));
+    body.appendChild(breakdownSection('Errores más frecuentes', stats.byError || {}, stats.total));
+    body.appendChild(breakdownSection('Soluciones más aplicadas', stats.bySolution || {}, stats.total));
   }
 
   function openDialog() {
