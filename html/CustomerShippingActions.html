@@ -47,16 +47,30 @@
       if (fillIfEmpty('cs-postal-code', extracted.postalCode)) filled += 1;
       if (fillIfEmpty('cs-country', extracted.country)) filled += 1;
       if (fillIfEmpty('cs-address', extracted.address)) filled += 1;
+      if (fillIfEmpty('cs-shipping-address', extracted.shippingAddress)) filled += 1;
+      if (fillIfEmpty('cs-recipient-first-name', extracted.shippingRecipientFirstName)) filled += 1;
+      if (fillIfEmpty('cs-recipient-last-name', extracted.shippingRecipientLastName)) filled += 1;
+      if (fillIfEmpty('cs-recipient-phone', extracted.shippingRecipientPhone)) filled += 1;
+      if (fillIfEmpty('cs-recipient-country', extracted.shippingRecipientCountry)) filled += 1;
+      if (fillIfEmpty('cs-recipient-postal-code', extracted.shippingRecipientPostalCode)) filled += 1;
       if (extracted.serialNumber && fillIfEmpty('ta-serial-number', extracted.serialNumber)) filled += 1;
+      if (extracted.orderNumber && fillIfEmpty('ta-order-number', extracted.orderNumber)) filled += 1;
+
+      let addedErrors = 0;
+      let addedSolutions = 0;
+      const columns = window.__ppIssuesColumns;
+      if (columns && extracted.suggestedErrors && extracted.suggestedErrors.length) {
+        addedErrors = columns.errors.addItems(extracted.suggestedErrors);
+      }
+      if (columns && extracted.suggestedSolutions && extracted.suggestedSolutions.length) {
+        addedSolutions = columns.solutions.addItems(extracted.suggestedSolutions);
+      }
 
       const parts = [];
       parts.push(filled ? 'Se han rellenado ' + filled + ' campos desde los mensajes.' : 'No se encontraron datos nuevos en los mensajes.');
-      if (extracted.suggestedErrors && extracted.suggestedErrors.length) {
-        parts.push('Posibles errores: ' + extracted.suggestedErrors.join(', ') + ' (añádelos con el + si corresponde).');
-      }
-      if (extracted.suggestedSolutions && extracted.suggestedSolutions.length) {
-        parts.push('Posibles soluciones: ' + extracted.suggestedSolutions.join(', ') + '.');
-      }
+      if (addedErrors) parts.push(addedErrors + ' error' + (addedErrors === 1 ? '' : 'es') + ' añadido' + (addedErrors === 1 ? '' : 's') + ' automáticamente.');
+      if (addedSolutions) parts.push(addedSolutions + ' solución' + (addedSolutions === 1 ? '' : 'es') + ' añadida' + (addedSolutions === 1 ? '' : 's') + ' automáticamente.');
+      if (addedErrors || addedSolutions) parts.push('Revísalos antes de guardar.');
       showSnack(parts.join(' '));
     } catch (error) {
       showSnack(error && error.message ? error.message : String(error));
@@ -136,7 +150,7 @@
     const extractButton = document.createElement('button');
     extractButton.type = 'button';
     extractButton.className = 'text-button';
-    extractButton.textContent = 'Extraer datos de los mensajes';
+    extractButton.textContent = 'Analizar mensajes y rellenar todo';
     extractButton.addEventListener('click', function () { extractFromMessages(ticketId, extractButton); });
     extractRow.appendChild(extractButton);
     wrap.appendChild(extractRow);

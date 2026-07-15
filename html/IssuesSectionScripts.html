@@ -63,6 +63,7 @@
   function createColumn(config) {
     let catalogCache = null;
     let originalValue = null;
+    let lastContainer = null;
     function loadCatalog() {
       if (catalogCache) return Promise.resolve(catalogCache);
       return callServer(config.catalogFn).then(unwrap).then(function (catalog) {
@@ -125,6 +126,7 @@
     }
 
     function render(container, overrideItems) {
+      lastContainer = container;
       container.replaceChildren();
       container.className = 'issues-column';
 
@@ -194,7 +196,18 @@
 
     return {
       render: render,
-      reset: function () { originalValue = null; }
+      reset: function () { originalValue = null; },
+      addItems: function (codes) {
+        if (!lastContainer || !codes || !codes.length) return 0;
+        const hidden = document.getElementById(config.hiddenId);
+        const existing = hidden ? hidden.value.split(',').map(function (item) { return item.trim(); }).filter(Boolean) : currentItems();
+        const additions = codes.filter(function (code) { return existing.indexOf(code) === -1; });
+        if (!additions.length) return 0;
+        const updated = existing.concat(additions);
+        if (hidden) hidden.value = updated.join(', ');
+        render(lastContainer, updated);
+        return additions.length;
+      }
     };
   }
 
@@ -219,6 +232,8 @@
     emptyLabel: 'Sin soluciones registradas.',
     deleteLabel: 'Eliminar solución'
   });
+
+  window.__ppIssuesColumns = {errors: errorsColumn, solutions: solutionsColumn};
 
   function ensureIssuesSection() {
     const section = document.getElementById('detected-errors-section');

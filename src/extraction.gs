@@ -16,18 +16,94 @@ class MessageFieldExtractor {
     const emailMatch = String(fromHeader || '').match(/[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
     const senderEmail = emailMatch ? emailMatch[0] : '';
     const serialNumber = MessageFieldExtractor.extractSerialNumber_(body);
-    const bodyWithoutSerial = serialNumber
+    const orderNumber = MessageFieldExtractor.extractOrderNumber_(body);
+    let bodyWithoutSerial = serialNumber
       ? body.replace(/\bPP[\s_-]?\d{2}[\s_-]\d{3}[\s_-]\d{5}\b/i, ' ')
       : body;
+    if (orderNumber) {
+      bodyWithoutSerial = bodyWithoutSerial.replace(MessageFieldExtractor.ORDER_NUMBER_PATTERN_, ' ');
+    }
+    const shippingMarker = MessageFieldExtractor.SHIPPING_MARKER_.exec(body);
+    const bodyBeforeShipping = shippingMarker ? bodyWithoutSerial.slice(0, shippingMarker.index) : bodyWithoutSerial;
+    const shipping = MessageFieldExtractor.extractShippingBlock_(body);
     return {
       firstName: name.firstName,
       lastName: name.lastName,
-      phone: MessageFieldExtractor.extractPhone_(bodyWithoutSerial),
-      postalCode: MessageFieldExtractor.extractPostalCode_(bodyWithoutSerial),
+      phone: MessageFieldExtractor.extractPhone_(bodyBeforeShipping),
+      postalCode: MessageFieldExtractor.extractPostalCode_(bodyBeforeShipping),
       country: MessageFieldExtractor.extractCountry_(body, senderEmail),
-      address: MessageFieldExtractor.extractAddress_(bodyWithoutSerial),
-      serialNumber: serialNumber
+      address: MessageFieldExtractor.extractAddress_(bodyBeforeShipping),
+      serialNumber: serialNumber,
+      orderNumber: orderNumber,
+      shippingRecipientFirstName: shipping.firstName,
+      shippingRecipientLastName: shipping.lastName,
+      shippingAddress: shipping.address,
+      shippingRecipientPhone: shipping.phone,
+      shippingRecipientCountry: shipping.address ? MessageFieldExtractor.extractCountry_(shipping.address, '') : '',
+      shippingRecipientPostalCode: shipping.address ? MessageFieldExtractor.extractPostalCode_(shipping.address) : ''
     };
+  }
+
+  /** @private */
+  static get SHIPPING_MARKER_() {
+    return /(?:ship\s*to|deliver\s*to|shipping\s*address|enviar\s*a|env[ií]o\s*a|direcci[oó]n\s*de\s*env[ií]o|livrer\s*[aà]|liefern\s*an)\s*[:\-]?\s*/i;
+  }
+
+  /** @private */
+  static get ORDER_NUMBER_PATTERN_() {
+    return /(?:pedido|order|reference|referencia|n[uú]mero de pedido|order\s*number)\s*[:#\-]?\s*#?\s*\d{3,10}/i;
+  }
+
+  /**
+   * Looks for an explicit order/reference number, e.g. "Pedido #04521",
+   * "Order number: 12345", "Nº pedido 00812".
+   * @param {string} text
+   * @return {string}
+   * @private
+   */
+  static extractOrderNumber_(text) {
+    const match = MessageFieldExtractor.ORDER_NUMBER_PATTERN_.exec(text);
+    if (!match) return '';
+    const digits = match[0].match(/\d{3,10}/)[0];
+    return '#' + digits.replace(/^0+(?=\d)/, '').padStart(5, '0');
+  }
+
+  /**
+   * Looks for a "ship to / deliver to / enviar a" block naming a different
+   * recipient than the customer themselves, with its own address/phone.
+   * @param {string} text
+   * @return {{firstName: string, lastName: string, address: string, phone: string}}
+   * @private
+   */
+  static extractShippingBlock_(text) {
+    const match = MessageFieldExtractor.SHIPPING_MARKER_.exec(text);
+    if (!match) return {firstName: '', lastName: '', address: '', phone: ''};
+
+    const otherFieldLine = /(tel[eé]fono|phone|tel\.?|telefon|num[eé]ro|e-?mail)\s*[:\-]/i;
+    const afterMarker = text.slice(match.index + match[0].length, match.index + match[0].length + 200);
+    const lines = afterMarker.split(/\n+/).map(function(line) { return line.trim(); }).filter(Boolean);
+    if (!lines.length) return {firstName: '', lastName: '', address: '', phone: ''};
+
+    const nameLine = /^[A-ZÀ-ÖØ-Þ][\p{L}'-]+(?:\s+[A-ZÀ-ÖØ-Þ][\p{L}'-]+){0,2}$/u;
+    let firstName = '';
+    let lastName = '';
+    let addressLines = lines;
+    if (nameLine.test(lines[0])) {
+      const parts = lines[0].split(/\s+/);
+      firstName = parts[0];
+      lastName = parts.slice(1).join(' ');
+      addressLines = lines.slice(1);
+    }
+
+    // Only keep lines that look like a real address continuation (has a
+    // digit, e.g. a house number or postal code) — rejects sign-offs like
+    // "Un saludo," or "Best regards" that might follow in the same block.
+    const addressOnlyLines = addressLines.filter(function(line) {
+      return !otherFieldLine.test(line) && /\d/.test(line);
+    });
+    const address = addressOnlyLines.slice(0, 2).join(', ');
+    const phone = MessageFieldExtractor.extractPhone_(afterMarker);
+    return {firstName: firstName, lastName: lastName, address: address, phone: phone};
   }
 
   /**
