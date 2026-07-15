@@ -270,7 +270,10 @@ class TicketManager {
       detectedErrors: String(data.detectedErrors || ''),
       detectedSolutions: String(data.detectedSolutions || ''),
       orderNumber: String(data.orderNumber || ''),
-      serialNumber: SerialNumberService.normalize(data.serialNumber || '')
+      serialNumber: SerialNumberService.normalize(data.serialNumber || ''),
+      statusChangedAt: this.clock_(),
+      priorityChangedAt: this.clock_(),
+      categoryChangedAt: this.clock_()
     };
     const created = this.repository_.create(record);
     this.dashboard_.refresh();
@@ -381,17 +384,29 @@ class TicketManager {
     const updates = {updatedAt: this.clock_(), version: this.version_};
     let ticket = null;
 
+    if (Object.prototype.hasOwnProperty.call(data, 'status') || Object.prototype.hasOwnProperty.call(data, 'priority') || Object.prototype.hasOwnProperty.call(data, 'category')) {
+      ticket = ticket || this.repository_.findById(ticketId);
+      if (!ticket) throw new Error('Ticket not found: ' + ticketId);
+    }
+
     if (Object.prototype.hasOwnProperty.call(data, 'status')) {
       updates.status = TicketPolicy.enumValue(data.status, TicketPolicy.statuses(), 'status');
+      if (updates.status !== ticket.status) {
+        updates.statusChangedAt = this.clock_();
+      }
     }
     if (Object.prototype.hasOwnProperty.call(data, 'priority')) {
       updates.priority = TicketPolicy.enumValue(data.priority, TicketPolicy.priorities(), 'priority');
-      ticket = ticket || this.repository_.findById(ticketId);
-      if (!ticket) throw new Error('Ticket not found: ' + ticketId);
       updates.slaDueAt = this.policy_.calculateDueAt(ticket.createdAt, updates.priority);
+      if (updates.priority !== ticket.priority) {
+        updates.priorityChangedAt = this.clock_();
+      }
     }
     if (Object.prototype.hasOwnProperty.call(data, 'category')) {
       updates.category = TicketPolicy.enumValue(data.category, TicketPolicy.categories(), 'category');
+      if (updates.category !== ticket.category) {
+        updates.categoryChangedAt = this.clock_();
+      }
     }
     if (Object.prototype.hasOwnProperty.call(data, 'assignedTo')) {
       updates.assignedTo = String(data.assignedTo || '').trim();

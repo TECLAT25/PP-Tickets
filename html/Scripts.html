@@ -277,7 +277,10 @@
       ['Created', formatDate(ticket.createdAt)],
       ['Last message', formatDate(ticket.lastMessageAt)],
       ['SLA due', formatDate(ticket.slaDueAt)],
-      ['Tags', ticket.tags || '—']
+      ['Tags', ticket.tags || '—'],
+      ['Estado desde', formatDate(ticket.statusChangedAt)],
+      ['Prioridad desde', formatDate(ticket.priorityChangedAt)],
+      ['Categoría desde', formatDate(ticket.categoryChangedAt)]
     ].forEach(function (field) {
       const wrapper = element('div', 'detail-field');
       wrapper.appendChild(element('dt', '', field[0]));

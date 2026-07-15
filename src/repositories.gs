@@ -68,11 +68,12 @@ class SheetTicketRepository {
     const ticket = this.findById(ticketId);
     if (!ticket) throw new AppError('Ticket not found: ' + ticketId, 'TICKET_NOT_FOUND', {ticketId: ticketId});
     const row = this.sheet_.getRange(ticket.rowNumber, 1, 1, this.headers_.length).getValues()[0];
-    const allowed = ['status', 'priority', 'category', 'subject', 'customerId', 'customerEmail',
+    const allowed = ['status', 'priority', 'category', 'subject', 'customerId', 'customerEmail', 'threadId',
       'assignedTo', 'updatedAt', 'lastMessageAt', 'slaDueAt', 'driveFolderId', 'tags', 'version',
       'shippingAddress', 'shippingRecipient', 'shippingRecipientPhone',
       'shippingRecipientFirstName', 'shippingRecipientLastName',
-      'shippingRecipientCountry', 'shippingRecipientPostalCode', 'notes', 'detectedErrors', 'detectedSolutions', 'orderNumber', 'serialNumber'];
+      'shippingRecipientCountry', 'shippingRecipientPostalCode', 'notes', 'detectedErrors', 'detectedSolutions', 'orderNumber', 'serialNumber',
+      'statusChangedAt', 'priorityChangedAt', 'categoryChangedAt'];
     SheetTicketRepository.fields_().forEach(function(mapping) {
       if (allowed.indexOf(mapping.field) !== -1 && Object.prototype.hasOwnProperty.call(changes, mapping.field)) {
         row[this.headerIndex_[mapping.header]] = changes[mapping.field];
@@ -86,7 +87,11 @@ class SheetTicketRepository {
   }
 
   updateConversation(ticket, changes) {
-    const updated = this.update(ticket.id, changes);
+    const finalChanges = Object.assign({}, changes);
+    if (Object.prototype.hasOwnProperty.call(changes, 'status') && changes.status !== ticket.status) {
+      finalChanges.statusChangedAt = new Date();
+    }
+    const updated = this.update(ticket.id, finalChanges);
     Object.assign(ticket, updated);
     return updated;
   }
@@ -183,7 +188,8 @@ class SheetTicketRepository {
       {field: 'shippingAddress', header: 'Shipping Address'}, {field: 'shippingRecipient', header: 'Shipping Recipient'}, {field: 'shippingRecipientPhone', header: 'Shipping Recipient Phone'},
       {field: 'shippingRecipientFirstName', header: 'Shipping Recipient First Name'}, {field: 'shippingRecipientLastName', header: 'Shipping Recipient Last Name'},
       {field: 'shippingRecipientCountry', header: 'Shipping Recipient Country'}, {field: 'shippingRecipientPostalCode', header: 'Shipping Recipient Postal Code'},
-      {field: 'notes', header: 'Notes'}, {field: 'detectedErrors', header: 'Detected Errors'}, {field: 'detectedSolutions', header: 'Detected Solutions'}, {field: 'orderNumber', header: 'Order Number'}, {field: 'serialNumber', header: 'Serial Number'}
+      {field: 'notes', header: 'Notes'}, {field: 'detectedErrors', header: 'Detected Errors'}, {field: 'detectedSolutions', header: 'Detected Solutions'}, {field: 'orderNumber', header: 'Order Number'}, {field: 'serialNumber', header: 'Serial Number'},
+      {field: 'statusChangedAt', header: 'Status Changed At'}, {field: 'priorityChangedAt', header: 'Priority Changed At'}, {field: 'categoryChangedAt', header: 'Category Changed At'}
     ];
   }
 }

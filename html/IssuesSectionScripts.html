@@ -39,6 +39,9 @@
       '.issues-add-button { width: 30px; height: 30px; border-radius: 50%; border: 1px dashed var(--outline); background: transparent; color: var(--primary); cursor: pointer; font-size: 16px; line-height: 1; }',
       '.issues-list { margin-top: 10px; display: grid; gap: 6px; }',
       '.issue-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 8px 8px 14px; border: 1px solid var(--outline-variant); border-radius: 10px; background: var(--surface-container); font-size: 13px; }',
+      '.issue-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }',
+      '.issue-row-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+      '.issue-row-date { font-size: 11px; color: var(--on-surface-variant); }',
       '.issue-delete-button { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--error); cursor: pointer; }',
       '.issue-delete-button:hover { background: var(--error-container); }',
       '.issue-delete-button .material-symbols-rounded { font-size: 18px; }',
@@ -78,6 +81,19 @@
       return (entry && entry.description) ? entry.description : code;
     }
 
+    function parseToken(token) {
+      const atIndex = token.lastIndexOf('@');
+      if (atIndex === -1) return {code: token, timestamp: ''};
+      return {code: token.slice(0, atIndex), timestamp: token.slice(atIndex + 1)};
+    }
+
+    function formatTokenDate(timestamp) {
+      if (!timestamp) return '';
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return '';
+      return date.toLocaleString('es-ES', {day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'});
+    }
+
     function currentItems() {
       const detail = currentDetail();
       const raw = (detail.ticket && detail.ticket[config.ticketField]) || '';
@@ -103,7 +119,8 @@
       window.setTimeout(function () { document.addEventListener('click', onOutsideClick); }, 0);
 
       loadCatalog().then(function (catalog) {
-        const available = catalog.filter(function (entry) { return currentList.indexOf(entry.code) === -1; });
+        const currentCodes = currentList.map(function (token) { return parseToken(token).code; });
+        const available = catalog.filter(function (entry) { return currentCodes.indexOf(entry.code) === -1; });
         menu.replaceChildren();
         if (!available.length) {
           const empty = document.createElement('div');
@@ -119,7 +136,7 @@
           item.innerHTML = '<strong>' + entry.code + '</strong>' + (entry.description ? '<span>' + entry.description + '</span>' : '');
           item.addEventListener('click', function () {
             const hidden = document.getElementById(config.hiddenId);
-            const updated = currentList.concat([entry.code]);
+            const updated = currentList.concat([entry.code + '@' + new Date().toISOString()]);
             hidden.value = updated.join(', ');
             closePicker();
             render(container, updated);
@@ -176,12 +193,24 @@
         list.appendChild(empty);
       }
 
-      items.forEach(function (code) {
+      items.forEach(function (token) {
+        const parsed = parseToken(token);
         const row = document.createElement('div');
         row.className = 'issue-row';
+        const textWrap = document.createElement('span');
+        textWrap.className = 'issue-row-text';
         const label = document.createElement('span');
-        label.textContent = descriptionFor(code);
-        label.title = code;
+        label.className = 'issue-row-label';
+        label.textContent = descriptionFor(parsed.code);
+        label.title = parsed.code;
+        textWrap.appendChild(label);
+        const formattedDate = formatTokenDate(parsed.timestamp);
+        if (formattedDate) {
+          const dateSpan = document.createElement('span');
+          dateSpan.className = 'issue-row-date';
+          dateSpan.textContent = formattedDate;
+          textWrap.appendChild(dateSpan);
+        }
         const removeButton = document.createElement('button');
         removeButton.type = 'button';
         removeButton.className = 'issue-delete-button';
@@ -189,11 +218,11 @@
         removeButton.setAttribute('aria-label', config.deleteLabel);
         removeButton.innerHTML = '<span class="material-symbols-rounded" aria-hidden="true">delete</span>';
         removeButton.addEventListener('click', function () {
-          const updated = items.filter(function (item) { return item !== code; });
+          const updated = items.filter(function (item) { return item !== token; });
           hidden.value = updated.join(', ');
           render(container, updated);
         });
-        row.appendChild(label);
+        row.appendChild(textWrap);
         row.appendChild(removeButton);
         list.appendChild(row);
       });
@@ -214,8 +243,11 @@
         if (!lastContainer || !codes || !codes.length) return 0;
         const hidden = document.getElementById(config.hiddenId);
         const existing = hidden ? hidden.value.split(',').map(function (item) { return item.trim(); }).filter(Boolean) : currentItems();
-        const additions = codes.filter(function (code) { return existing.indexOf(code) === -1; });
-        if (!additions.length) return 0;
+        const existingCodes = existing.map(function (token) { return parseToken(token).code; });
+        const newCodes = codes.filter(function (code) { return existingCodes.indexOf(code) === -1; });
+        if (!newCodes.length) return 0;
+        const now = new Date().toISOString();
+        const additions = newCodes.map(function (code) { return code + '@' + now; });
         const updated = existing.concat(additions);
         if (hidden) hidden.value = updated.join(', ');
         render(lastContainer, updated);
