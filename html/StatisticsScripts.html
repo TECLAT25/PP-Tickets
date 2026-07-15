@@ -35,13 +35,15 @@
       '.st-header h2{margin:0}',
       '.st-body{overflow-y:auto;padding:24px 26px 30px}',
       '.st-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:28px}',
+      '.st-timing-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important;margin-bottom:8px!important}',
+      '.st-timing-note{margin:0 0 28px;font-size:12px;color:var(--on-surface-variant)}',
       '.st-summary-card{border:1px solid var(--outline-variant);border-radius:14px;padding:16px 18px;background:var(--surface-container)}',
       '.st-summary-card span{display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--on-surface-variant);margin-bottom:6px}',
       '.st-summary-card strong{font-size:26px}',
       '.st-summary-card[data-tone="error"] strong{color:var(--error)}',
       '.st-section{margin-bottom:26px}',
       '.st-section h3{margin:0 0 12px;font-size:14px}',
-      '.st-bar-row{display:grid;grid-template-columns:150px 1fr 40px;align-items:center;gap:10px;margin-bottom:8px;font-size:12px}',
+      '.st-bar-row{display:grid;grid-template-columns:150px 1fr 70px;align-items:center;gap:10px;margin-bottom:8px;font-size:12px}',
       '.st-bar-track{height:14px;border-radius:7px;background:var(--surface-container);overflow:hidden}',
       '.st-bar-fill{height:100%;background:var(--primary);border-radius:7px}',
       '.st-bar-count{text-align:right;font-weight:700}',
@@ -57,6 +59,15 @@
 
   function onKeydown(event) {
     if (event.key === 'Escape') closeDialog(document.querySelector('.st-backdrop'));
+  }
+
+  function formatDuration(hours) {
+    if (!hours || hours <= 0) return '—';
+    if (hours < 1) return Math.round(hours * 60) + ' min';
+    if (hours < 24) return Math.round(hours * 10) / 10 + ' h';
+    const days = Math.floor(hours / 24);
+    const remainingHours = Math.round(hours % 24);
+    return days + 'd ' + remainingHours + 'h';
   }
 
   function summaryCard(label, value, tone) {
@@ -109,7 +120,7 @@
       track.appendChild(fill);
       const countNode = document.createElement('span');
       countNode.className = 'st-bar-count';
-      countNode.textContent = count;
+      countNode.textContent = count + ' (' + pct + '%)';
       row.appendChild(label);
       row.appendChild(track);
       row.appendChild(countNode);
@@ -129,6 +140,18 @@
     summary.appendChild(summaryCard('SLA incumplido', stats.breached, stats.breached ? 'error' : ''));
     summary.appendChild(summaryCard('Clientes', stats.customerCount));
     body.appendChild(summary);
+
+    const timingSummary = document.createElement('div');
+    timingSummary.className = 'st-summary st-timing-summary';
+    timingSummary.appendChild(summaryCard('Tiempo medio de resolución', formatDuration(stats.avgResolutionHours)));
+    timingSummary.appendChild(summaryCard('Tiempo medio abierto (activos)', formatDuration(stats.avgOpenHours)));
+    body.appendChild(timingSummary);
+    if (stats.resolvedSampleSize || stats.activeSampleSize) {
+      const note = document.createElement('p');
+      note.className = 'st-timing-note';
+      note.textContent = 'Basado en ' + (stats.resolvedSampleSize || 0) + ' tickets resueltos y ' + (stats.activeSampleSize || 0) + ' activos.';
+      body.appendChild(note);
+    }
 
     body.appendChild(breakdownSection('Por estado', stats.byStatus, stats.total));
     body.appendChild(breakdownSection('Por prioridad', stats.byPriority, stats.total));
