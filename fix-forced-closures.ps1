@@ -1,3 +1,13 @@
+﻿# fix-forced-closures.ps1
+# Quita el cierre automatico de tickets al fusionar, y revierte a
+# Abierto cualquier ticket que se cerrara por error con la version
+# anterior.
+$ErrorActionPreference = "Stop"
+$root = Get-Location
+$enc = New-Object System.Text.UTF8Encoding($false)
+
+Write-Host "Escribiendo src/install.gs..." -ForegroundColor Cyan
+$v0 = @'
 /** Installer for the complete PP Tickets workspace. */
 class AppInstaller {
   /**
@@ -346,3 +356,14 @@ class AppInstaller {
 function install() {
   return AppInstaller.run();
 }
+'@
+[System.IO.File]::WriteAllText((Join-Path $root "src\install.gs"), $v0, $enc)
+Write-Host "  [OK]" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "Verificando..." -ForegroundColor Cyan
+Select-String -Path src\install.gs -Pattern "revertForcedTicketClosures_"
+
+Write-Host ""
+Write-Host "Si salio arriba, ejecuta: npm test  y  npm run deploy" -ForegroundColor Cyan
+Write-Host "Luego ejecuta install() una vez para revertir los tickets cerrados por error." -ForegroundColor Cyan
