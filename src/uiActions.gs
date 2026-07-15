@@ -150,7 +150,7 @@ function updateUiTicketShipping(ticketId, shipping) {
 function saveUiTicketForm(ticketId, payload) {
   try {
     const data = payload || {};
-    const ticketFieldNames = ['status', 'priority', 'category', 'assignedTo', 'tags', 'notes', 'detectedErrors', 'detectedSolutions', 'orderNumber',
+    const ticketFieldNames = ['status', 'priority', 'category', 'assignedTo', 'tags', 'notes', 'detectedErrors', 'detectedSolutions', 'orderNumber', 'serialNumber',
       'shippingAddress', 'shippingRecipient', 'shippingRecipientPhone',
       'shippingRecipientFirstName', 'shippingRecipientLastName',
       'shippingRecipientCountry', 'shippingRecipientPostalCode'];

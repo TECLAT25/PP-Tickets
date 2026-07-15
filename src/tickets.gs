@@ -269,7 +269,8 @@ class TicketManager {
       notes: String(data.notes || ''),
       detectedErrors: String(data.detectedErrors || ''),
       detectedSolutions: String(data.detectedSolutions || ''),
-      orderNumber: String(data.orderNumber || '')
+      orderNumber: String(data.orderNumber || ''),
+      serialNumber: SerialNumberService.normalize(data.serialNumber || '')
     };
     const created = this.repository_.create(record);
     this.dashboard_.refresh();
@@ -409,6 +410,9 @@ class TicketManager {
     }
     if (Object.prototype.hasOwnProperty.call(data, 'orderNumber')) {
       updates.orderNumber = String(data.orderNumber || '').trim();
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'serialNumber')) {
+      updates.serialNumber = SerialNumberService.normalize(data.serialNumber || '');
     }
     ['shippingAddress', 'shippingRecipient', 'shippingRecipientPhone',
       'shippingRecipientFirstName', 'shippingRecipientLastName',

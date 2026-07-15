@@ -72,7 +72,7 @@ class SheetTicketRepository {
       'assignedTo', 'updatedAt', 'lastMessageAt', 'slaDueAt', 'driveFolderId', 'tags', 'version',
       'shippingAddress', 'shippingRecipient', 'shippingRecipientPhone',
       'shippingRecipientFirstName', 'shippingRecipientLastName',
-      'shippingRecipientCountry', 'shippingRecipientPostalCode', 'notes', 'detectedErrors', 'detectedSolutions', 'orderNumber'];
+      'shippingRecipientCountry', 'shippingRecipientPostalCode', 'notes', 'detectedErrors', 'detectedSolutions', 'orderNumber', 'serialNumber'];
     SheetTicketRepository.fields_().forEach(function(mapping) {
       if (allowed.indexOf(mapping.field) !== -1 && Object.prototype.hasOwnProperty.call(changes, mapping.field)) {
         row[this.headerIndex_[mapping.header]] = changes[mapping.field];
@@ -161,7 +161,7 @@ class SheetTicketRepository {
     ['id', 'status', 'priority', 'category', 'subject', 'customerId', 'customerEmail', 'threadId', 'assignedTo', 'driveFolderId', 'tags', 'version',
       'shippingAddress', 'shippingRecipient', 'shippingRecipientPhone',
       'shippingRecipientFirstName', 'shippingRecipientLastName',
-      'shippingRecipientCountry', 'shippingRecipientPostalCode', 'notes', 'detectedErrors', 'detectedSolutions', 'orderNumber'].forEach(function(field) {
+      'shippingRecipientCountry', 'shippingRecipientPostalCode', 'notes', 'detectedErrors', 'detectedSolutions', 'orderNumber', 'serialNumber'].forEach(function(field) {
       ticket[field] = String(ticket[field] || '');
     });
     return ticket;
@@ -183,7 +183,7 @@ class SheetTicketRepository {
       {field: 'shippingAddress', header: 'Shipping Address'}, {field: 'shippingRecipient', header: 'Shipping Recipient'}, {field: 'shippingRecipientPhone', header: 'Shipping Recipient Phone'},
       {field: 'shippingRecipientFirstName', header: 'Shipping Recipient First Name'}, {field: 'shippingRecipientLastName', header: 'Shipping Recipient Last Name'},
       {field: 'shippingRecipientCountry', header: 'Shipping Recipient Country'}, {field: 'shippingRecipientPostalCode', header: 'Shipping Recipient Postal Code'},
-      {field: 'notes', header: 'Notes'}, {field: 'detectedErrors', header: 'Detected Errors'}, {field: 'detectedSolutions', header: 'Detected Solutions'}, {field: 'orderNumber', header: 'Order Number'}
+      {field: 'notes', header: 'Notes'}, {field: 'detectedErrors', header: 'Detected Errors'}, {field: 'detectedSolutions', header: 'Detected Solutions'}, {field: 'orderNumber', header: 'Order Number'}, {field: 'serialNumber', header: 'Serial Number'}
     ];
   }
 }

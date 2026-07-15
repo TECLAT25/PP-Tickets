@@ -5,6 +5,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
+const serialNumbersSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'serialNumbers.gs'), 'utf8');
+vm.runInThisContext(
+  serialNumbersSource + '\n;globalThis.SerialNumberService = SerialNumberService;',
+  {filename: 'src/serialNumbers.gs'}
+);
+
 const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'tickets.gs'), 'utf8');
 vm.runInThisContext(
   source + '\n;globalThis.TicketManager = TicketManager;' +

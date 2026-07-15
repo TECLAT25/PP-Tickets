@@ -37,7 +37,7 @@ const SHEET_SCHEMAS = Object.freeze([
     'SLA Due At', 'Drive Folder ID', 'Tags', 'Version', 'Category',
     'Shipping Address', 'Shipping Recipient', 'Shipping Recipient Phone',
     'Shipping Recipient First Name', 'Shipping Recipient Last Name',
-    'Shipping Recipient Country', 'Shipping Recipient Postal Code', 'Notes', 'Detected Errors', 'Detected Solutions', 'Order Number'
+    'Shipping Recipient Country', 'Shipping Recipient Postal Code', 'Notes', 'Detected Errors', 'Detected Solutions', 'Order Number', 'Serial Number'
   ]), color: '#D93025'}),
   Object.freeze({name: 'Errors', headers: Object.freeze([
     'Error Code', 'Description'

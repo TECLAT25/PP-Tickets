@@ -82,7 +82,7 @@
         '<h2>Nuevo ticket</h2>' +
 
         '<label class="new-ticket-field"><span>Asunto</span><input id="nt-subject" type="text" placeholder="¿Qué necesita el cliente?"></label>' +
-        '<div class="new-ticket-row">' +
+        '<div class="new-ticket-row cols-2">' +
           '<label class="new-ticket-field"><span>Email del cliente</span><input id="nt-email" type="email" placeholder="cliente@ejemplo.com"></label>' +
           '<label class="new-ticket-field"><span>Prioridad</span>' +
             '<select id="nt-priority">' +
@@ -92,7 +92,10 @@
               '<option value="CRITICAL">Crítica</option>' +
             '</select>' +
           '</label>' +
+        '</div>' +
+        '<div class="new-ticket-row cols-2">' +
           '<label class="new-ticket-field"><span>Número de pedido</span><input id="nt-order-number" type="text" placeholder="#00000"></label>' +
+          '<label class="new-ticket-field"><span>Número de serie</span><input id="nt-serial-number" type="text" placeholder="PP-26-027-00154"></label>' +
         '</div>' +
 
         '<div class="new-ticket-section-label">Cliente</div>' +
@@ -154,7 +157,8 @@
           shippingRecipientPhone: val('nt-recipient-phone'),
           shippingRecipientCountry: val('nt-recipient-country'),
           shippingRecipientPostalCode: val('nt-recipient-postal-code'),
-          orderNumber: val('nt-order-number')
+          orderNumber: val('nt-order-number'),
+          serialNumber: val('nt-serial-number')
         }));
         const ticketId = result && result.id;
         const firstName = val('nt-first-name');

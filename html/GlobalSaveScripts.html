@@ -71,8 +71,8 @@
 
     try {
       const payload = {};
-      const ticketFields = ['ta-status', 'ta-priority', 'ta-category', 'ta-assigned-to', 'ta-tags', 'ta-order-number', 'ticket-notes', 'ticket-detected-errors', 'ticket-detected-solutions'];
-      const ticketKeys = {'ta-status': 'status', 'ta-priority': 'priority', 'ta-category': 'category', 'ta-assigned-to': 'assignedTo', 'ta-tags': 'tags', 'ta-order-number': 'orderNumber', 'ticket-notes': 'notes', 'ticket-detected-errors': 'detectedErrors', 'ticket-detected-solutions': 'detectedSolutions'};
+      const ticketFields = ['ta-status', 'ta-priority', 'ta-category', 'ta-assigned-to', 'ta-tags', 'ta-order-number', 'ta-serial-number', 'ticket-notes', 'ticket-detected-errors', 'ticket-detected-solutions'];
+      const ticketKeys = {'ta-status': 'status', 'ta-priority': 'priority', 'ta-category': 'category', 'ta-assigned-to': 'assignedTo', 'ta-tags': 'tags', 'ta-order-number': 'orderNumber', 'ta-serial-number': 'serialNumber', 'ticket-notes': 'notes', 'ticket-detected-errors': 'detectedErrors', 'ticket-detected-solutions': 'detectedSolutions'};
       ticketFields.forEach(function (id) {
         const changed = valIfChanged(id);
         if (changed !== undefined) payload[ticketKeys[id]] = changed;

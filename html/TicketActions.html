@@ -108,6 +108,7 @@
     actions.appendChild(createSelect('ta-priority', 'Prioridad', OPTIONS.priority, selectedValueFromChip(1)));
     actions.appendChild(createSelect('ta-category', 'Categoría', OPTIONS.category, selectedValueFromChip(2)));
     actions.appendChild(createTextField('ta-order-number', 'Número de pedido', (currentDetail().ticket || {}).orderNumber, '#00000', false));
+    actions.appendChild(createTextField('ta-serial-number', 'Número de serie', (currentDetail().ticket || {}).serialNumber, 'PP-26-027-00154', false));
     const assigneeValue = detailFieldValue('Assignee');
     actions.appendChild(createTextField('ta-assigned-to', 'Asignado a', assigneeValue === 'Sin asignar' ? '' : assigneeValue, 'email o nombre'));
     actions.appendChild(createTextField('ta-tags', 'Etiquetas', detailFieldValue('Tags'), 'etiqueta1, etiqueta2, etiqueta3'));
