@@ -47,7 +47,17 @@
       if (fillIfEmpty('cs-postal-code', extracted.postalCode)) filled += 1;
       if (fillIfEmpty('cs-country', extracted.country)) filled += 1;
       if (fillIfEmpty('cs-address', extracted.address)) filled += 1;
-      showSnack(filled ? 'Se han rellenado ' + filled + ' campos desde los mensajes. Revísalos antes de guardar.' : 'No se encontraron datos nuevos en los mensajes.');
+      if (extracted.serialNumber && fillIfEmpty('ticket-notes', 'Número de serie detectado: ' + extracted.serialNumber)) filled += 1;
+
+      const parts = [];
+      parts.push(filled ? 'Se han rellenado ' + filled + ' campos desde los mensajes.' : 'No se encontraron datos nuevos en los mensajes.');
+      if (extracted.suggestedErrors && extracted.suggestedErrors.length) {
+        parts.push('Posibles errores: ' + extracted.suggestedErrors.join(', ') + ' (añádelos con el + si corresponde).');
+      }
+      if (extracted.suggestedSolutions && extracted.suggestedSolutions.length) {
+        parts.push('Posibles soluciones: ' + extracted.suggestedSolutions.join(', ') + '.');
+      }
+      showSnack(parts.join(' '));
     } catch (error) {
       showSnack(error && error.message ? error.message : String(error));
     } finally {

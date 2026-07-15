@@ -242,10 +242,29 @@ function extractUiFieldsFromMessages(ticketId) {
     const combinedText = inbound.map(function(message) { return message.body; }).join('\n\n');
     const fromHeader = inbound.length ? inbound[0].from : '';
     const extracted = MessageFieldExtractor.extract(combinedText, fromHeader);
+
+    let suggestedErrors = [];
+    let suggestedSolutions = [];
+    try {
+      const errorCatalog = unwrapCatalog_(getUiErrorCatalog());
+      suggestedErrors = MessageFieldExtractor.suggestCatalogMatches(combinedText, errorCatalog).slice(0, 5);
+      const solutionCatalog = unwrapCatalog_(getUiSolutionCatalog());
+      suggestedSolutions = MessageFieldExtractor.suggestCatalogMatches(combinedText, solutionCatalog).slice(0, 5);
+    } catch (catalogError) {
+      // Catalog sheets unavailable — field extraction still works without suggestions.
+    }
+    extracted.suggestedErrors = suggestedErrors;
+    extracted.suggestedSolutions = suggestedSolutions;
+
     return {ok: true, data: extracted};
   } catch (error) {
     return AppUtils.errorResponse(error);
   }
+}
+
+/** @param {Object} response @return {Array} @private */
+function unwrapCatalog_(response) {
+  return (response && response.ok && response.data) ? response.data : [];
 }
 
 /**

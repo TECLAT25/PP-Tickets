@@ -8,19 +8,38 @@ class MessageFieldExtractor {
   /**
    * @param {string} text Combined inbound email body text (any language).
    * @param {string=} fromHeader Raw "From" header of the first inbound message, e.g. "Jane Doe <jane@example.com>".
-   * @return {{firstName: string, lastName: string, phone: string, postalCode: string, country: string, address: string}}
+   * @return {{firstName: string, lastName: string, phone: string, postalCode: string, country: string, address: string, serialNumber: string}}
    */
   static extract(text, fromHeader) {
     const body = String(text || '');
     const name = MessageFieldExtractor.extractName_(String(fromHeader || ''), body);
+    const serialNumber = MessageFieldExtractor.extractSerialNumber_(body);
+    const bodyWithoutSerial = serialNumber
+      ? body.replace(/\bPP[\s_-]?\d{2}[\s_-]\d{3}[\s_-]\d{5}\b/i, ' ')
+      : body;
     return {
       firstName: name.firstName,
       lastName: name.lastName,
-      phone: MessageFieldExtractor.extractPhone_(body),
-      postalCode: MessageFieldExtractor.extractPostalCode_(body),
+      phone: MessageFieldExtractor.extractPhone_(bodyWithoutSerial),
+      postalCode: MessageFieldExtractor.extractPostalCode_(bodyWithoutSerial),
       country: MessageFieldExtractor.extractCountry_(body),
-      address: MessageFieldExtractor.extractAddress_(body)
+      address: MessageFieldExtractor.extractAddress_(bodyWithoutSerial),
+      serialNumber: serialNumber
     };
+  }
+
+  /**
+   * Recognizes PocketPiano serial numbers in the app's canonical format
+   * (PP-YY-WWW-NNNNN), tolerating spaces or underscores customers might type.
+   * @param {string} text
+   * @return {string}
+   * @private
+   */
+  static extractSerialNumber_(text) {
+    const match = text.match(/\bPP[\s_-]?(\d{2})[\s_-](\d{3})[\s_-](\d{5})\b/i);
+    if (!match) return '';
+    const candidate = 'PP-' + match[1] + '-' + match[2] + '-' + match[3];
+    return SerialNumberService.isValid(candidate) ? candidate : '';
   }
 
   /**
@@ -159,5 +178,43 @@ class MessageFieldExtractor {
       }
     }
     return '';
+  }
+
+  /**
+   * Suggests which catalog entries (errors or solutions) might apply to a
+   * ticket, based on simple keyword overlap between each entry's code and
+   * description and the message text. Best-effort — always let the agent
+   * confirm before adding a suggestion.
+   * @param {string} text
+   * @param {Array<{code: string, description: string}>} catalog
+   * @return {Array<string>} matched codes, most relevant first
+   * @private-static
+   */
+  static suggestCatalogMatches(text, catalog) {
+    const lower = String(text || '').toLowerCase();
+    if (!lower || !catalog || !catalog.length) return [];
+
+    const stopWords = {
+      'the': 1, 'and': 1, 'for': 1, 'with': 1, 'from': 1, 'this': 1, 'that': 1,
+      'para': 1, 'con': 1, 'del': 1, 'las': 1, 'los': 1, 'una': 1, 'unos': 1, 'que': 1
+    };
+
+    const scored = catalog.map(function(entry) {
+      const codeWords = String(entry.code || '').toLowerCase().split(/[_\s-]+/);
+      const descWords = String(entry.description || '').toLowerCase().split(/\W+/);
+      const words = codeWords.concat(descWords)
+        .filter(function(word) { return word.length > 3 && !stopWords[word]; });
+
+      let score = 0;
+      words.forEach(function(word) {
+        if (lower.indexOf(word) !== -1) score += 1;
+      });
+      return {code: entry.code, score: score};
+    });
+
+    return scored
+      .filter(function(item) { return item.score > 0; })
+      .sort(function(a, b) { return b.score - a.score; })
+      .map(function(item) { return item.code; });
   }
 }
