@@ -13,6 +13,8 @@ class MessageFieldExtractor {
   static extract(text, fromHeader) {
     const body = String(text || '');
     const name = MessageFieldExtractor.extractName_(String(fromHeader || ''), body);
+    const emailMatch = String(fromHeader || '').match(/[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
+    const senderEmail = emailMatch ? emailMatch[0] : '';
     const serialNumber = MessageFieldExtractor.extractSerialNumber_(body);
     const bodyWithoutSerial = serialNumber
       ? body.replace(/\bPP[\s_-]?\d{2}[\s_-]\d{3}[\s_-]\d{5}\b/i, ' ')
@@ -22,7 +24,7 @@ class MessageFieldExtractor {
       lastName: name.lastName,
       phone: MessageFieldExtractor.extractPhone_(bodyWithoutSerial),
       postalCode: MessageFieldExtractor.extractPostalCode_(bodyWithoutSerial),
-      country: MessageFieldExtractor.extractCountry_(body),
+      country: MessageFieldExtractor.extractCountry_(body, senderEmail),
       address: MessageFieldExtractor.extractAddress_(bodyWithoutSerial),
       serialNumber: serialNumber
     };
@@ -109,21 +111,40 @@ class MessageFieldExtractor {
     const labelled = text.match(labelPattern);
     if (labelled) return labelled[2].trim();
 
-    const patterns = [
+    const isYear = function(value) {
+      const num = parseInt(value, 10);
+      return value.length === 4 && num >= 1900 && num <= 2099;
+    };
+
+    const structuredPatterns = [
       /\b([A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})\b/,   // UK style
       /\b(\d{5}-\d{3})\b/,                          // BR style
-      /\b(\d{2}-\d{3})\b/,                          // PL style
-      /\b(\d{4,6})\b/                                // ES/generic numeric
+      /\b(\d{2}-\d{3})\b/                           // PL style
     ];
-    for (let i = 0; i < patterns.length; i += 1) {
-      const match = text.match(patterns[i]);
+    for (let i = 0; i < structuredPatterns.length; i += 1) {
+      const match = text.match(structuredPatterns[i]);
       if (match) return match[1];
     }
-    return '';
+
+    // Generic 4-6 digit fallback: collect every candidate, reject plausible
+    // years (e.g. "2026" from a message date/timestamp), prefer one that
+    // sits on the same line as the detected address.
+    const candidates = text.match(/\b\d{4,6}\b/g) || [];
+    const valid = candidates.filter(function(value) { return !isYear(value); });
+    if (!valid.length) return '';
+
+    const addressLine = MessageFieldExtractor.extractAddress_(text);
+    const onAddressLine = valid.filter(function(value) { return addressLine.indexOf(value) !== -1; });
+    return onAddressLine[0] || valid[0];
   }
 
-  /** @param {string} text @return {string} @private */
-  static extractCountry_(text) {
+  /**
+   * @param {string} text
+   * @param {string=} email Customer email, used as a fallback signal via its country-code TLD.
+   * @return {string}
+   * @private
+   */
+  static extractCountry_(text, email) {
     const countries = {
       'spain': 'España', 'españa': 'España', 'espana': 'España',
       'united kingdom': 'United Kingdom', 'uk': 'United Kingdom', 'england': 'United Kingdom', 'great britain': 'United Kingdom',
@@ -143,13 +164,41 @@ class MessageFieldExtractor {
       'denmark': 'Danmark', 'dinamarca': 'Danmark',
       'norway': 'Norge', 'noruega': 'Norge',
       'finland': 'Suomi', 'finlandia': 'Suomi',
-      'united states': 'United States', 'usa': 'United States', 'estados unidos': 'United States'
+      'united states': 'United States', 'usa': 'United States', 'estados unidos': 'United States',
+      'mexico': 'México', 'méxico': 'México',
+      'argentina': 'Argentina',
+      'brazil': 'Brasil', 'brasil': 'Brasil',
+      'canada': 'Canada', 'canadá': 'Canada',
+      'greece': 'Ελλάδα', 'grecia': 'Ελλάδα',
+      'czech republic': 'Česko', 'czechia': 'Česko', 'republica checa': 'Česko',
+      'hungary': 'Magyarország', 'hungria': 'Magyarország',
+      'romania': 'România', 'rumania': 'România',
+      'turkey': 'Türkiye', 'turquia': 'Türkiye',
+      'china': '中国',
+      'india': 'India',
+      'australia': 'Australia',
+      'new zealand': 'New Zealand', 'nueva zelanda': 'New Zealand'
     };
     const lower = text.toLowerCase();
     const found = Object.keys(countries)
       .filter(function(key) { return new RegExp('\\b' + key + '\\b').test(lower); })
       .sort(function(a, b) { return b.length - a.length; });
-    return found.length ? countries[found[0]] : '';
+    if (found.length) return countries[found[0]];
+
+    const tldMap = {
+      es: 'España', uk: 'United Kingdom', fr: 'France', de: 'Deutschland', it: 'Italia',
+      pt: 'Portugal', nl: 'Nederland', pl: 'Polska', se: 'Sverige', jp: '日本', kr: '대한민국',
+      be: 'België', ie: 'Ireland', at: 'Österreich', ch: 'Schweiz', dk: 'Danmark', no: 'Norge',
+      fi: 'Suomi', mx: 'México', ar: 'Argentina', br: 'Brasil', ca: 'Canada', gr: 'Ελλάδα',
+      cz: 'Česko', hu: 'Magyarország', ro: 'România', tr: 'Türkiye', cn: '中国', in: 'India',
+      au: 'Australia', nz: 'New Zealand'
+    };
+    const domainMatch = String(email || '').match(/\.([a-z]{2})$/i);
+    if (domainMatch) {
+      const tld = domainMatch[1].toLowerCase();
+      if (tldMap[tld]) return tldMap[tld];
+    }
+    return '';
   }
 
   /**

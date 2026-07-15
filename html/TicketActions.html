@@ -15,6 +15,10 @@
     return eyebrow ? eyebrow.textContent.trim() : '';
   }
 
+  function currentDetail() {
+    return window.__ticketDetail || {};
+  }
+
   function selectedValueFromChip(index) {
     const chips = document.querySelectorAll('#ticket-detail .detail-chips .chip');
     return chips[index] ? (chips[index].dataset.value || chips[index].textContent.trim().toUpperCase().replace(/ /g, '_')) : '';
@@ -60,9 +64,9 @@
     return label;
   }
 
-  function createTextField(fieldId, name, value, placeholder) {
+  function createTextField(fieldId, name, value, placeholder, wide) {
     const label = document.createElement('label');
-    label.className = 'ticket-action-field ticket-action-field-wide';
+    label.className = wide === false ? 'ticket-action-field' : 'ticket-action-field ticket-action-field-wide';
     const caption = document.createElement('span');
     caption.textContent = name;
     const input = document.createElement('input');
@@ -103,6 +107,7 @@
     actions.appendChild(createSelect('ta-status', 'Estado', OPTIONS.status, selectedValueFromChip(0)));
     actions.appendChild(createSelect('ta-priority', 'Prioridad', OPTIONS.priority, selectedValueFromChip(1)));
     actions.appendChild(createSelect('ta-category', 'Categoría', OPTIONS.category, selectedValueFromChip(2)));
+    actions.appendChild(createTextField('ta-order-number', 'Número de pedido', (currentDetail().ticket || {}).orderNumber, '#00000', false));
     const assigneeValue = detailFieldValue('Assignee');
     actions.appendChild(createTextField('ta-assigned-to', 'Asignado a', assigneeValue === 'Sin asignar' ? '' : assigneeValue, 'email o nombre'));
     actions.appendChild(createTextField('ta-tags', 'Etiquetas', detailFieldValue('Tags'), 'etiqueta1, etiqueta2, etiqueta3'));

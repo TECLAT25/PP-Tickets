@@ -268,7 +268,8 @@ class TicketManager {
       shippingRecipientPostalCode: String(data.shippingRecipientPostalCode || ''),
       notes: String(data.notes || ''),
       detectedErrors: String(data.detectedErrors || ''),
-      detectedSolutions: String(data.detectedSolutions || '')
+      detectedSolutions: String(data.detectedSolutions || ''),
+      orderNumber: String(data.orderNumber || '')
     };
     const created = this.repository_.create(record);
     this.dashboard_.refresh();
@@ -405,6 +406,9 @@ class TicketManager {
     }
     if (Object.prototype.hasOwnProperty.call(data, 'detectedSolutions')) {
       updates.detectedSolutions = TicketManager.normalizeTags_(data.detectedSolutions);
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'orderNumber')) {
+      updates.orderNumber = String(data.orderNumber || '').trim();
     }
     ['shippingAddress', 'shippingRecipient', 'shippingRecipientPhone',
       'shippingRecipientFirstName', 'shippingRecipientLastName',
