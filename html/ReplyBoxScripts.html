@@ -66,7 +66,9 @@
     if (!detail || detail.querySelector('.reply-box') || !ticketId()) return;
 
     var email = customerEmail();
-    var mailLink = email && email !== '—' ? 'mailto:' + encodeURIComponent(email) : '#';
+    var mailLink = email && email !== '—'
+      ? 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(email)
+      : '#';
     var box = document.createElement('section');
     box.className = 'reply-box';
     box.innerHTML = '<div class="reply-box-header"><h3>Respuesta rápida</h3><div class="reply-header-actions"><a class="mail-customer-button" href="' + mailLink + '" target="_blank" rel="noopener">Enviar email al cliente</a><button class="reply-toggle" type="button">Abrir editor de respuesta</button></div></div>' +
