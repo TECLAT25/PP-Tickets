@@ -1,0 +1,22 @@
+{
+  "name": "pp-tickets",
+  "version": "2.3.4",
+  "private": true,
+  "description": "PP Tickets Google Apps Script workspace.",
+  "scripts": {
+    "test": "node tests/gmailSync.test.js && node tests/ticketManager.test.js && node tests/uiQuery.test.js",
+    "login": "clasp login",
+    "status": "clasp status",
+    "push": "clasp push",
+    "pull:gas": "clasp pull",
+    "open": "clasp open",
+    "deploy": "clasp push",
+    "watch": "clasp push --watch"
+  },
+  "devDependencies": {
+    "@google/clasp": "^3.0.6-alpha"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

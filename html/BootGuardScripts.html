@@ -1,0 +1,58 @@
+<script>
+(function () {
+  'use strict';
+
+  function maximizeDialog() {
+    if (!window.google || !google.script || !google.script.host) return;
+    if (typeof google.script.host.setWidth !== 'function') return;
+    var width = Math.round((window.screen.availWidth || window.innerWidth) * 0.995);
+    var height = Math.round((window.screen.availHeight || window.innerHeight) * 0.99);
+    google.script.host.setWidth(width);
+    google.script.host.setHeight(height);
+  }
+  maximizeDialog();
+
+  function byId(id) {
+    return document.getElementById(id);
+  }
+
+  function showBootError(message) {
+    var loading = byId('loading');
+    if (loading) loading.hidden = true;
+
+    var snackbar = byId('snackbar');
+    if (snackbar) {
+      snackbar.textContent = message;
+      snackbar.hidden = false;
+    }
+
+    var dashboard = byId('view-dashboard');
+    if (!dashboard || dashboard.querySelector('[data-boot-error]')) return;
+
+    var box = document.createElement('section');
+    box.className = 'surface empty-state';
+    box.setAttribute('data-boot-error', 'true');
+    box.innerHTML = '<span class="material-symbols-rounded" aria-hidden="true">error</span>' +
+      '<h3>El espacio de trabajo no pudo terminar de cargar</h3>' +
+      '<p>' + message + '</p>' +
+      '<p>Abre las ejecuciones de Apps Script para ver el error del servidor, y ejecuta install() de nuevo si cambiaron los permisos.</p>';
+    dashboard.appendChild(box);
+  }
+
+  window.addEventListener('error', function (event) {
+    showBootError(event.message || 'Un error del navegador detuvo la interfaz.');
+  });
+
+  window.addEventListener('unhandledrejection', function (event) {
+    var reason = event.reason;
+    showBootError((reason && reason.message) || String(reason || 'Un error de promesa detuvo la interfaz.'));
+  });
+
+  window.setTimeout(function () {
+    var loading = byId('loading');
+    if (loading && !loading.hidden) {
+      showBootError('La solicitud inicial de datos no se completó. Comprueba que support@pocketpiano.com haya autorizado el nuevo proyecto de Apps Script y que getUiState() se ejecute sin errores.');
+    }
+  }, 15000);
+})();
+</script>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0">
+    <?!= include('css/Styles'); ?>
+  </head>
+  <body>
+    <div class="app support-shell">
+      <aside class="navigation" aria-label="Navegación principal">
+        <div class="brand">
+          <span class="brand-mark material-symbols-rounded" aria-hidden="true">piano</span>
+          <div>
+            <strong><?= AppUtils.escapeHtml(bootstrap.app.name) ?></strong>
+            <small>Espacio de soporte</small>
+          </div>
+        </div>
+        <nav class="nav-list">
+          <button class="nav-item is-active" type="button" data-view="dashboard">
+            <span class="material-symbols-rounded" aria-hidden="true">dashboard</span>
+            <span>Panel</span>
+          </button>
+          <button class="nav-item" type="button" data-view="tickets">
+            <span class="material-symbols-rounded" aria-hidden="true">confirmation_number</span>
+            <span>Tickets</span>
+          </button>
+          <button class="nav-item" type="button" data-view="customer">
+            <span class="material-symbols-rounded" aria-hidden="true">person</span>
+            <span>Cliente</span>
+          </button>
+        </nav>
+        <div class="navigation-footer">
+          <span><?= AppUtils.escapeHtml(bootstrap.user.email || 'Usuario del espacio') ?></span>
+          <small>v<?= AppUtils.escapeHtml(bootstrap.app.version) ?></small>
+        </div>
+      </aside>
+
+      <main class="main support-main">
+        <header class="top-app-bar support-topbar">
+          <span class="topbar-brand"><?= AppUtils.escapeHtml(bootstrap.app.name) ?> <small>v<?= AppUtils.escapeHtml(bootstrap.app.version) ?></small></span>
+          <label class="search-field" for="global-search">
+            <span class="material-symbols-rounded" aria-hidden="true">search</span>
+            <input id="global-search" type="search" placeholder="Buscar cliente, ticket, número de serie…" autocomplete="off">
+          </label>
+          <button id="sync-gmail" class="tonal-button top-action" type="button" aria-label="Sincronizar Gmail">
+            <span class="material-symbols-rounded" aria-hidden="true">sync</span>Sincronizar
+          </button>
+          <button class="tonal-button top-action" type="button" data-action="refresh">
+            <span class="material-symbols-rounded" aria-hidden="true">refresh</span>Actualizar
+          </button>
+          <button id="global-save-button" class="tonal-button top-action" type="button">
+            <span class="material-symbols-rounded" aria-hidden="true">save</span>Guardar
+          </button>
+          <button id="customer-directory-button" class="tonal-button top-action" type="button">
+            <span class="material-symbols-rounded" aria-hidden="true">group</span>Clientes
+          </button>
+          <button id="statistics-button" class="tonal-button top-action" type="button">
+            <span class="material-symbols-rounded" aria-hidden="true">bar_chart</span>Estadísticas
+          </button>
+          <button id="theme-toggle" class="icon-button" type="button" aria-label="Cambiar modo oscuro">
+            <span class="material-symbols-rounded" aria-hidden="true">dark_mode</span>
+          </button>
+        </header>
+
+        <div id="loading" class="loading" role="status">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Cargando espacio de trabajo…</span>
+        </div>
+
+        <section id="view-dashboard" class="view is-active" aria-labelledby="dashboard-title">
+          <div class="page-heading">
+            <div><p class="eyebrow">Resumen</p><h1 id="dashboard-title">Panel</h1></div>
+            <button class="tonal-button" type="button" data-action="refresh">
+              <span class="material-symbols-rounded" aria-hidden="true">refresh</span>Actualizar
+            </button>
+          </div>
+          <div id="metric-grid" class="metric-grid" aria-label="Métricas de tickets"></div>
+          <section class="surface">
+            <div class="section-heading">
+              <div><h2>Tickets recientes</h2><p>Conversaciones actualizadas más recientemente</p></div>
+              <button class="text-button" type="button" data-view-link="tickets">Ver todos</button>
+            </div>
+            <div id="recent-tickets" class="ticket-cards"></div>
+          </section>
+        </section>
+
+        <section id="view-tickets" class="view support-workbench" aria-labelledby="tickets-title">
+          <aside class="queue-panel surface" aria-label="Colas de tickets">
+            <div class="queue-title">
+              <p class="eyebrow">Colas</p>
+              <button id="new-ticket-button" class="icon-button" type="button" title="Nuevo ticket" aria-label="Nuevo ticket" aria-haspopup="dialog">
+                <span class="material-symbols-rounded" aria-hidden="true">add</span>
+              </button>
+            </div>
+            <div id="queue-list" class="queue-list">
+              <button class="queue-item is-active" type="button" data-queue="all"><span>Bandeja</span><strong>0</strong></button>
+              <button class="queue-item" type="button" data-queue="breached"><span>SLA incumplido</span><strong>0</strong></button>
+            </div>
+            <div class="filters compact-filters" aria-label="Filtros de tickets">
+              <label><span>Estado</span><select id="filter-status"><option value="">Todo</option></select></label>
+              <label><span>Prioridad</span><select id="filter-priority"><option value="">Todo</option></select></label>
+              <label><span>Categoría</span><select id="filter-category"><option value="">Todo</option></select></label>
+              <label class="breach-filter"><input id="filter-breached" type="checkbox"><span>SLA incumplido</span></label>
+            </div>
+          </aside>
+
+          <section class="ticket-list-panel surface" aria-labelledby="tickets-title">
+            <div class="ticket-list-header">
+              <div><p class="eyebrow">Soporte</p><h1 id="tickets-title">Tickets</h1></div>
+              <span id="ticket-count" class="count-badge">0 tickets</span>
+            </div>
+            <div class="ticket-list-tools">
+              <span class="muted">Ordenado por última actualización</span>
+            </div>
+            <div class="table-wrap ticket-card-table">
+              <table>
+                <thead><tr><th>Ticket</th><th>Estado</th><th>Prioridad</th><th>Cliente</th><th>Actualizado</th></tr></thead>
+                <tbody id="ticket-table-body"></tbody>
+              </table>
+            </div>
+            <div id="ticket-empty" class="empty-state" hidden>
+              <span class="material-symbols-rounded" aria-hidden="true">inbox</span>
+              <h3>No se encontraron tickets</h3>
+              <p>Prueba a quitar algún filtro.</p>
+            </div>
+          </section>
+
+          <aside id="ticket-detail" class="surface detail-panel support-detail" aria-live="polite">
+            <div class="empty-state">
+              <span class="material-symbols-rounded" aria-hidden="true">select_check_box</span>
+              <h3>Selecciona un ticket</h3>
+              <p>Aquí aparecerán los detalles del ticket, el historial del cliente y la conversación.</p>
+            </div>
+          </aside>
+        </section>
+
+        <section id="view-customer" class="view" aria-labelledby="customer-title">
+          <div class="page-heading">
+            <div><p class="eyebrow">Relación</p><h1 id="customer-title">Cliente</h1></div>
+          </div>
+          <div id="customer-view" class="surface customer-view">
+            <div class="empty-state">
+              <span class="material-symbols-rounded" aria-hidden="true">person_search</span>
+              <h3>Ningún cliente seleccionado</h3>
+              <p>Selecciona un ticket para ver la ficha de su cliente.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="snackbar" class="snackbar" role="alert" aria-live="assertive" hidden></div>
+    <?!= include('html/BootGuardScripts'); ?>
+    <?!= include('html/Scripts'); ?>
+    <?!= include('html/DraftScripts'); ?>
+    <?!= include('html/SyncScripts'); ?>
+    <?!= include('html/TicketActions'); ?>
+    <?!= include('html/CustomerShippingActions'); ?>
+    <?!= include('html/IssuesSectionScripts'); ?>
+    <?!= include('html/NewTicketScripts'); ?>
+    <?!= include('html/UsabilityScripts'); ?>
+    <?!= include('html/QueueScripts'); ?>
+    <?!= include('html/WorkbenchScripts'); ?>
+    <?!= include('html/ReplyBoxScripts'); ?>
+    <?!= include('html/DashboardEnhancements'); ?>
+    <?!= include('html/GlobalSaveScripts'); ?>
+    <?!= include('html/CustomerDirectoryScripts'); ?>
+    <?!= include('html/StatisticsScripts'); ?>
+  </body>
+</html>

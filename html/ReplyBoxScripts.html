@@ -1,0 +1,123 @@
+<script>
+(function () {
+  'use strict';
+
+  function css() {
+    if (document.getElementById('reply-box-css')) return;
+    var style = document.createElement('style');
+    style.id = 'reply-box-css';
+    style.textContent = '.reply-box{margin:0;padding:10px 12px;border-top:1px solid var(--outline-variant);background:var(--surface-container);max-height:48px;overflow:hidden;transition:max-height .18s ease}' +
+      '.reply-box.is-open{max-height:260px;overflow:auto}' +
+      '.reply-box-header{display:flex;align-items:center;justify-content:space-between;gap:12px}' +
+      '.reply-box h3{margin:0;font-size:15px}' +
+      '.reply-header-actions{display:flex;align-items:center;gap:6px}' +
+      '.reply-toggle,.mail-customer-button{border:1px solid var(--outline-variant);border-radius:16px;background:var(--surface-bright);padding:5px 10px;cursor:pointer;font-size:12px;color:var(--on-surface);text-decoration:none}' +
+      '.mail-customer-button{font-weight:800}' +
+      '.reply-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}' +
+      '.reply-chip{border:1px solid var(--outline-variant);border-radius:16px;background:var(--surface-bright);padding:6px 10px;cursor:pointer;font-size:12px}' +
+      '.reply-box textarea{width:100%;min-height:96px;resize:vertical;border:1px solid var(--outline-variant);border-radius:12px;padding:12px;background:var(--surface-bright);color:var(--on-surface);font:inherit}' +
+      '.reply-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}';
+    document.head.appendChild(style);
+  }
+
+  function ticketId() {
+    var eyebrow = document.querySelector('#ticket-detail .detail-header .eyebrow');
+    return eyebrow ? eyebrow.textContent.trim() : '';
+  }
+
+  function customerEmail() {
+    var fields = document.querySelectorAll('#ticket-detail .detail-field');
+    for (var index = 0; index < fields.length; index += 1) {
+      var title = fields[index].querySelector('dt');
+      var value = fields[index].querySelector('dd');
+      if (title && value && title.textContent.trim().toLowerCase() === 'customer') return value.textContent.trim();
+    }
+    var row = document.querySelector('[data-ticket-id].is-selected td:nth-child(4)');
+    return row ? row.textContent.trim() : '';
+  }
+
+  function insert(textarea, value) {
+    var start = textarea.selectionStart || textarea.value.length;
+    var end = textarea.selectionEnd || textarea.value.length;
+    textarea.value = textarea.value.slice(0, start) + value + textarea.value.slice(end);
+    textarea.focus();
+    textarea.selectionStart = textarea.selectionEnd = start + value.length;
+  }
+
+  function callServer(name) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      var runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      runner[name].apply(runner, args);
+    });
+  }
+
+  function toast(message) {
+    var snackbar = document.getElementById('snackbar');
+    if (!snackbar) return;
+    snackbar.textContent = message;
+    snackbar.hidden = false;
+    window.setTimeout(function () { snackbar.hidden = true; }, 6000);
+  }
+
+  function ensureBox() {
+    css();
+    var detail = document.getElementById('ticket-detail');
+    if (!detail || detail.querySelector('.reply-box') || !ticketId()) return;
+
+    var email = customerEmail();
+    var mailLink = email && email !== '—' ? 'mailto:' + encodeURIComponent(email) : '#';
+    var box = document.createElement('section');
+    box.className = 'reply-box';
+    box.innerHTML = '<div class="reply-box-header"><h3>Respuesta rápida</h3><div class="reply-header-actions"><a class="mail-customer-button" href="' + mailLink + '" target="_blank" rel="noopener">Enviar email al cliente</a><button class="reply-toggle" type="button">Abrir editor de respuesta</button></div></div>' +
+      '<div class="reply-toolbar"></div>' +
+      '<textarea placeholder="Escribe aquí el borrador de la respuesta..."></textarea>' +
+      '<div class="reply-actions"><button class="text-button" type="button" data-reply-clear>Borrar</button><button class="tonal-button" type="button" data-reply-draft>Crear borrador de Gmail</button></div>';
+
+    var toolbar = box.querySelector('.reply-toolbar');
+    var textarea = box.querySelector('textarea');
+    var toggle = box.querySelector('.reply-toggle');
+    toggle.addEventListener('click', function () {
+      box.classList.toggle('is-open');
+      toggle.textContent = box.classList.contains('is-open') ? 'Ocultar editor de respuesta' : 'Abrir editor de respuesta';
+    });
+
+    [
+      ['Saludo', 'Hola,\n\nGracias por contactar con PocketPiano.\n\n'],
+      ['Pedir número de serie', 'Para poder ayudarte mejor, indícanos el número de serie del PocketPiano y adjunta una foto o vídeo donde se vea el problema.\n\n'],
+      ['Garantía', 'Vamos a revisar si la incidencia queda cubierta por garantía.\n\n'],
+      ['Cierre', 'Un saludo,\nPocketPiano Support']
+    ].forEach(function (item) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'reply-chip';
+      button.textContent = item[0];
+      button.addEventListener('click', function () {
+        if (!box.classList.contains('is-open')) toggle.click();
+        insert(textarea, item[1]);
+      });
+      toolbar.appendChild(button);
+    });
+
+    box.querySelector('[data-reply-clear]').addEventListener('click', function () { textarea.value = ''; });
+    box.querySelector('[data-reply-draft]').addEventListener('click', function () {
+      var id = ticketId();
+      if (!id) return;
+      callServer('createUiDraftForTicket', id, 'DEFAULT_SUPPORT_REPLY', textarea.value).then(function (response) {
+        if (response && response.ok) toast('Borrador de Gmail creado para ' + id + '.');
+        else toast((response && response.error && response.error.message) || 'No se pudo crear el borrador.');
+      }).catch(function (error) { toast(error.message || String(error)); });
+    });
+
+    detail.appendChild(box);
+  }
+
+  function start() {
+    new MutationObserver(ensureBox).observe(document.body, {childList: true, subtree: true});
+    ensureBox();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>

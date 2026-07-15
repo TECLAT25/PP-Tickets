@@ -1,0 +1,196 @@
+<script>
+(function () {
+  'use strict';
+
+  function callServer(functionName) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      const runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      runner[functionName].apply(runner, args);
+    });
+  }
+
+  function unwrap(response) {
+    if (!response || response.ok !== true) {
+      const error = response && response.error ? response.error : {};
+      throw new Error(error.message || 'El servidor devolvió una respuesta no válida.');
+    }
+    return response.data;
+  }
+
+  function showSnack(message) {
+    const snackbar = document.getElementById('snackbar');
+    if (!snackbar) return;
+    snackbar.textContent = message;
+    snackbar.hidden = false;
+    window.setTimeout(function () { snackbar.hidden = true; }, 6000);
+  }
+
+  function injectStyles() {
+    if (document.getElementById('new-ticket-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'new-ticket-styles';
+    style.textContent = [
+      '#new-ticket-button{width:22px;height:22px;min-width:0}',
+      '#new-ticket-button .material-symbols-rounded{font-size:16px}',
+      '.new-ticket-backdrop{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:rgba(0,0,0,.32);padding:20px}',
+      '.new-ticket-dialog{width:min(620px,100%);max-height:90vh;overflow:auto;border-radius:var(--radius-lg);background:var(--surface-bright);box-shadow:var(--shadow);padding:22px}',
+      '.new-ticket-dialog h2{margin-bottom:12px}',
+      '.new-ticket-section-label{margin:16px 0 8px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--on-surface-variant)}',
+      '.new-ticket-section-label:first-of-type{margin-top:0}',
+      '.new-ticket-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}',
+      '.new-ticket-row.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}',
+      '.new-ticket-field{display:grid;gap:6px;margin-bottom:10px;font-size:12px;font-weight:800;text-transform:uppercase;color:var(--on-surface-variant)}',
+      '.new-ticket-field.wide{grid-column:1 / -1}',
+      '.new-ticket-field input,.new-ticket-field select{min-height:44px;padding:0 12px;border:1px solid var(--outline);border-radius:12px;color:var(--on-surface);background:var(--surface-bright);font:inherit;text-transform:none;font-weight:400}',
+      '.new-ticket-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  function closeDialog(backdrop) {
+    if (backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+    document.removeEventListener('keydown', onKeydown);
+  }
+
+  function onKeydown(event) {
+    if (event.key === 'Escape') {
+      const backdrop = document.querySelector('.new-ticket-backdrop');
+      closeDialog(backdrop);
+    }
+  }
+
+  function val(id) {
+    const node = document.getElementById(id);
+    return node ? node.value.trim() : '';
+  }
+
+  function openDialog() {
+    injectStyles();
+    if (document.querySelector('.new-ticket-backdrop')) return;
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'new-ticket-backdrop';
+    backdrop.setAttribute('role', 'dialog');
+    backdrop.setAttribute('aria-modal', 'true');
+    backdrop.addEventListener('click', function (event) {
+      if (event.target === backdrop) closeDialog(backdrop);
+    });
+
+    backdrop.innerHTML =
+      '<div class="new-ticket-dialog">' +
+        '<h2>Nuevo ticket</h2>' +
+
+        '<label class="new-ticket-field"><span>Asunto</span><input id="nt-subject" type="text" placeholder="¿Qué necesita el cliente?"></label>' +
+        '<div class="new-ticket-row cols-2">' +
+          '<label class="new-ticket-field"><span>Email del cliente</span><input id="nt-email" type="email" placeholder="cliente@ejemplo.com"></label>' +
+          '<label class="new-ticket-field"><span>Prioridad</span>' +
+            '<select id="nt-priority">' +
+              '<option value="NORMAL" selected>Normal</option>' +
+              '<option value="LOW">Baja</option>' +
+              '<option value="HIGH">Alta</option>' +
+              '<option value="CRITICAL">Crítica</option>' +
+            '</select>' +
+          '</label>' +
+        '</div>' +
+
+        '<div class="new-ticket-section-label">Cliente</div>' +
+        '<div class="new-ticket-row">' +
+          '<label class="new-ticket-field"><span>Nombre</span><input id="nt-first-name" type="text" placeholder="Jane"></label>' +
+          '<label class="new-ticket-field"><span>Apellidos</span><input id="nt-last-name" type="text" placeholder="Doe"></label>' +
+          '<label class="new-ticket-field"><span>Teléfono</span><input id="nt-phone" type="text" placeholder="+34 600 000 000"></label>' +
+        '</div>' +
+        '<label class="new-ticket-field wide"><span>Dirección</span><input id="nt-address" type="text" placeholder="Calle, ciudad, código postal"></label>' +
+        '<div class="new-ticket-row cols-2">' +
+          '<label class="new-ticket-field"><span>País</span><input id="nt-country" type="text" placeholder="España"></label>' +
+          '<label class="new-ticket-field"><span>Código postal</span><input id="nt-postal-code" type="text" placeholder="08001"></label>' +
+        '</div>' +
+
+        '<div class="new-ticket-section-label">Envío</div>' +
+        '<div class="new-ticket-row">' +
+          '<label class="new-ticket-field"><span>Nombre del destinatario</span><input id="nt-recipient-first-name" type="text" placeholder="Quién recibe el paquete"></label>' +
+          '<label class="new-ticket-field"><span>Apellidos del destinatario</span><input id="nt-recipient-last-name" type="text"></label>' +
+          '<label class="new-ticket-field"><span>Teléfono del destinatario</span><input id="nt-recipient-phone" type="text" placeholder="Teléfono de contacto"></label>' +
+        '</div>' +
+        '<label class="new-ticket-field wide"><span>Dirección de envío</span><input id="nt-shipping-address" type="text" placeholder="Si es distinta de la dirección del cliente"></label>' +
+        '<div class="new-ticket-row cols-2">' +
+          '<label class="new-ticket-field"><span>País del destinatario</span><input id="nt-recipient-country" type="text" placeholder="España"></label>' +
+          '<label class="new-ticket-field"><span>Código postal del destinatario</span><input id="nt-recipient-postal-code" type="text" placeholder="08001"></label>' +
+        '</div>' +
+
+        '<div class="new-ticket-actions">' +
+          '<button id="new-ticket-cancel" class="text-button" type="button">Cancelar</button>' +
+          '<button id="new-ticket-submit" class="tonal-button" type="button">Crear ticket</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(backdrop);
+    document.addEventListener('keydown', onKeydown);
+    document.getElementById('nt-subject').focus();
+
+    document.getElementById('new-ticket-cancel').addEventListener('click', function () {
+      closeDialog(backdrop);
+    });
+
+    document.getElementById('new-ticket-submit').addEventListener('click', async function () {
+      const subject = val('nt-subject');
+      const customerEmail = val('nt-email');
+      if (!subject || !customerEmail) {
+        showSnack('El asunto y el email del cliente son obligatorios.');
+        return;
+      }
+      const submitButton = document.getElementById('new-ticket-submit');
+      submitButton.disabled = true;
+      submitButton.textContent = 'Creando\u2026';
+      try {
+        const result = await unwrap(await callServer('createUiTicket', {
+          subject: subject,
+          customerEmail: customerEmail,
+          priority: val('nt-priority'),
+          shippingAddress: val('nt-shipping-address'),
+          shippingRecipientFirstName: val('nt-recipient-first-name'),
+          shippingRecipientLastName: val('nt-recipient-last-name'),
+          shippingRecipientPhone: val('nt-recipient-phone'),
+          shippingRecipientCountry: val('nt-recipient-country'),
+          shippingRecipientPostalCode: val('nt-recipient-postal-code')
+        }));
+        const ticketId = result && result.id;
+        const firstName = val('nt-first-name');
+        const lastName = val('nt-last-name');
+        const phone = val('nt-phone');
+        const address = val('nt-address');
+        const country = val('nt-country');
+        const postalCode = val('nt-postal-code');
+        if (ticketId && (firstName || lastName || phone || address || country || postalCode)) {
+          await unwrap(await callServer('updateUiCustomerForTicket', ticketId, {
+            firstName: firstName,
+            lastName: lastName,
+            phone: phone,
+            address: address,
+            country: country,
+            postalCode: postalCode
+          }));
+        }
+        closeDialog(backdrop);
+        showSnack('Ticket ' + (ticketId || '') + ' creado.');
+        const ticketsNav = document.querySelector('[data-view="tickets"]');
+        if (ticketsNav) ticketsNav.click();
+        document.querySelectorAll('[data-action="refresh"]').forEach(function (button) { button.click(); });
+      } catch (error) {
+        showSnack(error && error.message ? error.message : String(error));
+        submitButton.disabled = false;
+        submitButton.textContent = 'Crear ticket';
+      }
+    });
+  }
+
+  function start() {
+    const button = document.getElementById('new-ticket-button');
+    if (!button) return;
+    button.addEventListener('click', openDialog);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>

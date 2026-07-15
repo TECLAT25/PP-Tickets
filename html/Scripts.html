@@ -1,0 +1,519 @@
+<script>
+(function () {
+  'use strict';
+
+  const state = {
+    view: 'dashboard',
+    tickets: [],
+    filtersReady: false,
+    selectedTicketId: '',
+    selectedDetail: null,
+    sort: 'date_desc',
+    criteria: {limit: 100}
+  };
+
+  const byId = function (id) { return document.getElementById(id); };
+
+  function element(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
+  }
+
+  function icon(name) {
+    return element('span', 'material-symbols-rounded', name);
+  }
+
+  function callServer(functionName) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      const runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      runner[functionName].apply(runner, args);
+    });
+  }
+
+  function unwrap(response) {
+    if (!response || response.ok !== true) {
+      const error = response && response.error ? response.error : {};
+      throw new Error(error.message || 'El servidor devolvió una respuesta no válida.');
+    }
+    return response.data;
+  }
+
+  async function loadState() {
+    setLoading(true);
+    try {
+      const data = unwrap(await callServer('getUiState', state.criteria));
+      state.tickets = data.tickets.items || [];
+      renderMetrics(data.metrics);
+      renderRecentTickets(sortedTickets(state.tickets).slice(0, 6));
+      renderTicketList({items: sortedTickets(data.tickets.items || []), total: data.tickets.total});
+      if (!state.filtersReady) {
+        populateFilters(data.filters);
+        state.filtersReady = true;
+      }
+      if (state.selectedTicketId && !state.tickets.some(function (ticket) { return ticket.id === state.selectedTicketId; })) {
+        state.selectedTicketId = '';
+        state.selectedDetail = null;
+        renderDetail(null);
+      }
+    } catch (error) {
+      showError(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function sortedTickets(tickets) {
+    const copy = (tickets || []).slice();
+    copy.sort(function (left, right) {
+      if (state.sort === 'ticket_asc' || state.sort === 'ticket_desc') {
+        const comparison = compareTicketIds(left.id, right.id);
+        return state.sort === 'ticket_asc' ? comparison : -comparison;
+      }
+      const leftTime = dateValue(left.createdAt || left.updatedAt || left.lastMessageAt);
+      const rightTime = dateValue(right.createdAt || right.updatedAt || right.lastMessageAt);
+      return state.sort === 'date_asc' ? leftTime - rightTime : rightTime - leftTime;
+    });
+    return copy;
+  }
+
+  function dateValue(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+  }
+
+  function compareTicketIds(left, right) {
+    const leftNumber = ticketNumber(left);
+    const rightNumber = ticketNumber(right);
+    if (leftNumber !== rightNumber) return leftNumber - rightNumber;
+    return String(left || '').localeCompare(String(right || ''));
+  }
+
+  function ticketNumber(value) {
+    const matches = String(value || '').match(/\d+/g);
+    return matches && matches.length ? Number(matches[matches.length - 1]) : 0;
+  }
+
+  function renderSortBar() {
+    const panel = document.querySelector('.ticket-list-panel');
+    if (!panel || panel.querySelector('.ticket-sortbar')) return;
+    const header = panel.querySelector('.ticket-list-header');
+    if (header) header.hidden = true;
+
+    const bar = element('div', 'ticket-sortbar');
+    [
+      ['date_desc', 'Fecha ↓'],
+      ['date_asc', 'Fecha ↑'],
+      ['ticket_desc', 'Ticket ↓'],
+      ['ticket_asc', 'Ticket ↑']
+    ].forEach(function (item) {
+      const button = element('button', 'sort-button', item[1]);
+      button.type = 'button';
+      button.dataset.sort = item[0];
+      button.addEventListener('click', function () {
+        state.sort = item[0];
+        updateSortButtons();
+        renderTicketList({items: sortedTickets(state.tickets), total: state.tickets.length});
+      });
+      bar.appendChild(button);
+    });
+    panel.insertBefore(bar, header || panel.firstChild);
+    updateSortButtons();
+  }
+
+  function updateSortButtons() {
+    document.querySelectorAll('.sort-button').forEach(function (button) {
+      button.classList.toggle('is-active', button.dataset.sort === state.sort);
+    });
+  }
+
+  function renderMetrics(metrics) {
+    const definitions = [
+      ['confirmation_number', metrics.total, 'Tickets totales'],
+      ['pending_actions', metrics.active, 'Tickets activos'],
+      ['timer_off', metrics.breached, 'SLA incumplidos'],
+      ['priority_high', metrics.byPriority.CRITICAL || 0, 'Prioridad crítica']
+    ];
+    const grid = byId('metric-grid');
+    grid.replaceChildren();
+    definitions.forEach(function (definition) {
+      const card = element('article', 'metric-card');
+      const badge = element('span', 'metric-icon');
+      badge.appendChild(icon(definition[0]));
+      card.appendChild(badge);
+      card.appendChild(element('strong', '', definition[1]));
+      card.appendChild(element('span', '', definition[2]));
+      grid.appendChild(card);
+    });
+  }
+
+  function renderRecentTickets(tickets) {
+    const container = byId('recent-tickets');
+    container.replaceChildren();
+    if (!tickets.length) {
+      const empty = element('div', 'empty-state');
+      empty.appendChild(icon('inbox'));
+      empty.appendChild(element('h3', '', 'Todavía no hay tickets'));
+      empty.appendChild(element('p', '', 'Las nuevas conversaciones de soporte aparecerán aquí.'));
+      container.appendChild(empty);
+      return;
+    }
+    tickets.forEach(function (ticket) {
+      const button = element('button', 'ticket-card');
+      button.type = 'button';
+      button.addEventListener('click', function () {
+        navigate('tickets');
+        selectTicket(ticket.id);
+      });
+      const body = element('div');
+      body.appendChild(element('strong', '', ticket.id));
+      body.appendChild(element('div', 'ticket-subject', ticket.subject || '(no subject)'));
+      const meta = element('div', 'ticket-meta');
+      meta.appendChild(chip(ticket.status, toneForStatus(ticket.status)));
+      meta.appendChild(element('span', '', ticket.customerEmail || 'Sin email de cliente'));
+      body.appendChild(meta);
+      button.appendChild(body);
+      button.appendChild(element('span', 'ticket-meta', formatDate(ticket.updatedAt)));
+      container.appendChild(button);
+    });
+  }
+
+  function renderTicketList(page) {
+    renderSortBar();
+    const body = byId('ticket-table-body');
+    body.replaceChildren();
+    byId('ticket-count').textContent = page.total + (page.total === 1 ? ' ticket' : ' tickets');
+    byId('ticket-empty').hidden = page.items.length !== 0;
+
+    page.items.forEach(function (ticket) {
+      const row = document.createElement('tr');
+      row.tabIndex = 0;
+      row.dataset.ticketId = ticket.id;
+      row.dataset.status = ticket.status || '';
+      row.dataset.priority = ticket.priority || '';
+      if (ticket.id === state.selectedTicketId) row.classList.add('is-selected');
+      row.addEventListener('click', function () { selectTicket(ticket.id); });
+      row.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          selectTicket(ticket.id);
+        }
+      });
+
+      const identity = document.createElement('td');
+      identity.appendChild(element('strong', '', ticket.id));
+      identity.appendChild(element('div', 'ticket-subject', ticket.subject || '(no subject)'));
+      row.appendChild(identity);
+
+      const status = document.createElement('td');
+      status.appendChild(chip(ticket.status, toneForStatus(ticket.status)));
+      row.appendChild(status);
+
+      const priority = document.createElement('td');
+      priority.appendChild(chip(ticket.priority, toneForPriority(ticket.priority)));
+      row.appendChild(priority);
+      row.appendChild(element('td', '', ticket.customerEmail || '—'));
+      row.appendChild(element('td', '', formatDate(ticket.createdAt || ticket.updatedAt)));
+      body.appendChild(row);
+    });
+  }
+
+  async function selectTicket(ticketId) {
+    state.selectedTicketId = ticketId;
+    document.querySelectorAll('[data-ticket-id]').forEach(function (row) {
+      row.classList.toggle('is-selected', row.dataset.ticketId === ticketId);
+    });
+    const panel = byId('ticket-detail');
+    panel.replaceChildren(loadingBlock('Cargando ticket…'));
+    try {
+      const detail = unwrap(await callServer('getUiTicketDetail', ticketId));
+      state.selectedDetail = detail;
+      renderDetail(detail);
+      renderCustomer(detail.customer);
+    } catch (error) {
+      showError(error);
+      renderDetail(null);
+    }
+  }
+
+  function renderDetail(detail) {
+    window.__ticketDetail = detail || null;
+    const panel = byId('ticket-detail');
+    panel.replaceChildren();
+    if (!detail) {
+      const empty = element('div', 'empty-state');
+      empty.appendChild(icon('select_check_box'));
+      empty.appendChild(element('h3', '', 'Selecciona un ticket'));
+      empty.appendChild(element('p', '', 'Aquí aparecerán los detalles del ticket y la conversación.'));
+      panel.appendChild(empty);
+      return;
+    }
+
+    const ticket = detail.ticket;
+    const scrollArea = element('div', 'detail-scroll-area');
+    const header = element('header', 'detail-header');
+    const titleRow = element('div', 'detail-title-row');
+    const titleBlock = element('div', 'detail-title-block');
+    titleBlock.appendChild(element('span', 'eyebrow', ticket.id));
+    titleBlock.appendChild(element('h2', '', ticket.subject || '(sin asunto)'));
+    titleRow.appendChild(titleBlock);
+    const headerActions = element('div', 'detail-header-actions');
+    headerActions.id = 'detail-header-actions';
+    titleRow.appendChild(headerActions);
+    header.appendChild(titleRow);
+    const chips = element('div', 'detail-chips');
+    chips.appendChild(chip(ticket.status, toneForStatus(ticket.status)));
+    chips.appendChild(chip(ticket.priority, toneForPriority(ticket.priority)));
+    chips.appendChild(chip(ticket.category || 'GENERAL', ''));
+    header.appendChild(chips);
+    scrollArea.appendChild(header);
+
+    const grid = element('dl', 'detail-grid');
+    [
+      ['Customer', ticket.customerEmail || '—'],
+      ['Assignee', ticket.assignedTo || 'Sin asignar'],
+      ['Created', formatDate(ticket.createdAt)],
+      ['Last message', formatDate(ticket.lastMessageAt)],
+      ['SLA due', formatDate(ticket.slaDueAt)],
+      ['Tags', ticket.tags || '—']
+    ].forEach(function (field) {
+      const wrapper = element('div', 'detail-field');
+      wrapper.appendChild(element('dt', '', field[0]));
+      wrapper.appendChild(element('dd', '', field[1]));
+      grid.appendChild(wrapper);
+    });
+    scrollArea.appendChild(grid);
+
+    const conversation = element('section', 'conversation email-chain');
+    const heading = element('div', 'email-chain-heading');
+    heading.appendChild(element('h3', '', 'Hilo de correo'));
+    heading.appendChild(element('span', '', (detail.messages || []).length + ' mensajes'));
+    conversation.appendChild(heading);
+
+    if (!detail.messages.length) {
+      const empty = element('div', 'empty-state conversation-empty');
+      empty.appendChild(icon('forum'));
+      empty.appendChild(element('h3', '', 'Todavía no hay mensajes'));
+      empty.appendChild(element('p', '', 'Aquí aparecerán los emails sincronizados de este ticket.'));
+      conversation.appendChild(empty);
+    } else {
+      detail.messages.forEach(function (message, index) {
+        conversation.appendChild(renderEmailMessage(message, index));
+      });
+    }
+    scrollArea.appendChild(conversation);
+
+    const errorsPlaceholder = element('div', '');
+    errorsPlaceholder.id = 'detected-errors-section';
+    scrollArea.appendChild(errorsPlaceholder);
+
+    const notesSection = element('section', 'ticket-notes-section');
+    notesSection.appendChild(element('h3', '', 'Notas'));
+    const notesTextarea = document.createElement('textarea');
+    notesTextarea.id = 'ticket-notes';
+    notesTextarea.placeholder = 'Anota aquí información interna sobre este ticket (no se envía al cliente)...';
+    notesTextarea.value = ticket.notes || '';
+    notesTextarea.defaultValue = notesTextarea.value;
+    notesSection.appendChild(notesTextarea);
+    scrollArea.appendChild(notesSection);
+    panel.appendChild(scrollArea);
+  }
+
+  function renderEmailMessage(message, index) {
+    const item = element('article', 'message email-message' + (message.direction === 'OUTBOUND' ? ' is-outbound' : ''));
+    const top = element('div', 'email-message-top');
+    const identity = element('div', 'email-message-identity');
+    identity.appendChild(element('strong', '', message.direction === 'OUTBOUND' ? 'Soporte' : (message.from || 'Remitente desconocido')));
+    identity.appendChild(element('span', '', 'Mensaje ' + (index + 1)));
+    top.appendChild(identity);
+    top.appendChild(element('time', '', formatDate(message.sentAt)));
+    item.appendChild(top);
+
+    const subject = element('div', 'email-subject');
+    subject.appendChild(element('span', '', 'Asunto'));
+    subject.appendChild(element('strong', '', message.subject || '(sin asunto)'));
+    item.appendChild(subject);
+
+    const meta = element('dl', 'email-meta');
+    [['From', message.from || '—'], ['To', message.to || '—'], ['Cc', message.cc || '—']].forEach(function (field) {
+      const wrapper = element('div');
+      wrapper.appendChild(element('dt', '', field[0]));
+      wrapper.appendChild(element('dd', '', field[1]));
+      meta.appendChild(wrapper);
+    });
+    item.appendChild(meta);
+
+    const body = element('div', 'email-body');
+    body.textContent = message.body || '(mensaje vacío)';
+    item.appendChild(body);
+
+    if (message.attachmentCount > 0) {
+      const attachment = element('span', 'attachment email-attachment');
+      attachment.appendChild(icon('attach_file'));
+      attachment.appendChild(document.createTextNode(message.attachmentCount + (message.attachmentCount === 1 ? ' adjunto' : ' adjuntos')));
+      item.appendChild(attachment);
+    }
+    return item;
+  }
+
+  function renderCustomer(customer) {
+    const view = byId('customer-view');
+    view.replaceChildren();
+    if (!customer || (!customer.email && !customer.id)) {
+      const empty = element('div', 'empty-state');
+      empty.appendChild(icon('person_search'));
+      empty.appendChild(element('h3', '', 'Ficha de cliente no disponible'));
+      empty.appendChild(element('p', '', 'Este ticket todavía no está vinculado a ningún cliente.'));
+      view.appendChild(empty);
+      return;
+    }
+    const profile = element('div', 'customer-profile');
+    const initial = (customer.name || customer.email || '?').trim().charAt(0).toUpperCase();
+    profile.appendChild(element('div', 'avatar', initial));
+    const heading = element('div');
+    heading.appendChild(element('p', 'eyebrow', customer.id || 'Cliente'));
+    heading.appendChild(element('h2', '', customer.name || customer.email));
+    heading.appendChild(element('p', '', customer.company || 'Cliente particular'));
+    profile.appendChild(heading);
+    view.appendChild(profile);
+
+    const fields = element('dl', 'customer-fields');
+    [['Email', customer.email || '—'], ['Phone', customer.phone || '—'], ['Locale', customer.locale || '—'], ['Company', customer.company || '—'], ['Created', formatDate(customer.createdAt)], ['Updated', formatDate(customer.updatedAt)], ['Notes', customer.notes || '—']].forEach(function (field) {
+      const wrapper = element('div', 'detail-field');
+      wrapper.appendChild(element('dt', '', field[0]));
+      wrapper.appendChild(element('dd', '', field[1]));
+      fields.appendChild(wrapper);
+    });
+    view.appendChild(fields);
+  }
+
+  function populateFilters(filters) {
+    populateSelect(byId('filter-status'), filters.statuses);
+    populateSelect(byId('filter-priority'), filters.priorities);
+    populateSelect(byId('filter-category'), filters.categories);
+  }
+
+  function populateSelect(select, values) {
+    values.forEach(function (value) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = ENUM_LABELS[String(value).toUpperCase()] || titleCase(value);
+      select.appendChild(option);
+    });
+  }
+
+  const ENUM_LABELS = {
+    NEW: 'Nuevo', OPEN: 'Abierto', PENDING_CUSTOMER: 'Esperando cliente', RESOLVED: 'Resuelto', CLOSED: 'Cerrado',
+    LOW: 'Baja', NORMAL: 'Normal', HIGH: 'Alta', CRITICAL: 'Crítica',
+    GENERAL: 'General', TECHNICAL: 'Técnico', WARRANTY: 'Garantía', SHIPPING: 'Envío', BILLING: 'Facturación', PRODUCT: 'Producto', OTHER: 'Otro'
+  };
+
+  function chip(value, tone) {
+    const raw = String(value || 'UNKNOWN').toUpperCase();
+    const node = element('span', 'chip', ENUM_LABELS[raw] || titleCase(raw));
+    node.dataset.value = raw;
+    if (tone) node.dataset.tone = tone;
+    return node;
+  }
+
+  function toneForStatus(status) {
+    if (status === 'RESOLVED' || status === 'CLOSED') return 'success';
+    if (status === 'PENDING_CUSTOMER') return 'warning';
+    return '';
+  }
+
+  function toneForPriority(priority) {
+    if (priority === 'CRITICAL') return 'error';
+    if (priority === 'HIGH') return 'warning';
+    return '';
+  }
+
+  function titleCase(value) {
+    return String(value || '').toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, function (letter) {
+      return letter.toUpperCase();
+    });
+  }
+
+  function formatDate(value) {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'}).format(date);
+  }
+
+  function navigate(view) {
+    state.view = view;
+    document.querySelectorAll('.view').forEach(function (section) {
+      section.classList.toggle('is-active', section.id === 'view-' + view);
+    });
+    document.querySelectorAll('.nav-item').forEach(function (button) {
+      button.classList.toggle('is-active', button.dataset.view === view);
+    });
+  }
+
+  function updateCriteria() {
+    state.criteria.status = byId('filter-status').value || undefined;
+    state.criteria.priority = byId('filter-priority').value || undefined;
+    state.criteria.category = byId('filter-category').value || undefined;
+    state.criteria.slaBreached = byId('filter-breached').checked || undefined;
+    loadState();
+  }
+
+  function setLoading(loading) {
+    byId('loading').hidden = !loading;
+  }
+
+  function loadingBlock(label) {
+    const block = element('div', 'loading');
+    block.appendChild(element('span', 'spinner'));
+    block.appendChild(element('span', '', label));
+    return block;
+  }
+
+  function showError(error) {
+    const snackbar = byId('snackbar');
+    snackbar.textContent = error && error.message ? error.message : String(error);
+    snackbar.hidden = false;
+    window.setTimeout(function () { snackbar.hidden = true; }, 6000);
+  }
+
+  function setTheme(theme) {
+    if (theme === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.dataset.theme = theme;
+    localStorage.setItem('pocketpiano-theme', theme);
+    const dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    byId('theme-toggle').querySelector('.material-symbols-rounded').textContent = dark ? 'light_mode' : 'dark_mode';
+  }
+
+  let searchTimer;
+  byId('global-search').addEventListener('input', function (event) {
+    window.clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(function () {
+      state.criteria.query = event.target.value.trim() || undefined;
+      navigate('tickets');
+      loadState();
+    }, 300);
+  });
+  ['filter-status', 'filter-priority', 'filter-category', 'filter-breached'].forEach(function (id) {
+    byId(id).addEventListener('change', updateCriteria);
+  });
+  document.querySelectorAll('[data-view]').forEach(function (button) {
+    button.addEventListener('click', function () { navigate(button.dataset.view); });
+  });
+  document.querySelectorAll('[data-view-link]').forEach(function (button) {
+    button.addEventListener('click', function () { navigate(button.dataset.viewLink); });
+  });
+  document.querySelectorAll('[data-action="refresh"]').forEach(function (button) {
+    button.addEventListener('click', loadState);
+  });
+  byId('theme-toggle').addEventListener('click', function () {
+    const current = document.documentElement.dataset.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    setTheme(current === 'dark' ? 'light' : 'dark');
+  });
+
+  setTheme(localStorage.getItem('pocketpiano-theme') || 'system');
+  loadState();
+})();
+</script>

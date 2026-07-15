@@ -1,0 +1,418 @@
+<script>
+(function () {
+  'use strict';
+
+  function callServer(functionName) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      const runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      runner[functionName].apply(runner, args);
+    });
+  }
+
+  function unwrap(response) {
+    if (!response || response.ok !== true) {
+      const error = response && response.error ? response.error : {};
+      throw new Error(error.message || 'El servidor devolvió una respuesta no válida.');
+    }
+    return response.data;
+  }
+
+  function showSnack(message) {
+    const snackbar = document.getElementById('snackbar');
+    if (!snackbar) return;
+    snackbar.textContent = message;
+    snackbar.hidden = false;
+    window.setTimeout(function () { snackbar.hidden = true; }, 6000);
+  }
+
+  async function saveCustomer(customer, button) {
+    const fieldIds = {
+      'cd-first-name': 'firstName', 'cd-last-name': 'lastName', 'cd-email': 'email',
+      'cd-phone': 'phone', 'cd-locale': 'locale', 'cd-company': 'company',
+      'cd-address': 'address', 'cd-country': 'country', 'cd-postal-code': 'postalCode',
+      'cd-notes': 'notes'
+    };
+    const changes = {};
+    Object.keys(fieldIds).forEach(function (id) {
+      const changed = valIfChanged(id);
+      if (changed !== undefined) changes[fieldIds[id]] = changed;
+    });
+
+    if (!Object.keys(changes).length) {
+      showSnack('No hay cambios que guardar.');
+      return;
+    }
+
+    button.disabled = true;
+    const previous = button.textContent;
+    button.textContent = 'Guardando\u2026';
+    try {
+      const updated = await unwrap(await callServer('updateUiCustomerRecord', customer.id, changes));
+      Object.assign(customer, updated);
+      const listItem = document.querySelector('.cd-list-item[data-id="' + (customer.id || customer.email) + '"]');
+      if (listItem) {
+        listItem.querySelector('strong').textContent = displayName(customer);
+        listItem.querySelector('span').textContent = customer.email || '';
+      }
+      const heading = button.closest('.cd-detail').querySelector('h2');
+      if (heading) heading.textContent = displayName(customer);
+      showSnack('Datos de ' + displayName(customer) + ' guardados. Se aplican a todos sus tickets.');
+    } catch (error) {
+      showSnack(error && error.message ? error.message : String(error));
+    } finally {
+      button.disabled = false;
+      button.textContent = previous;
+    }
+  }
+
+  function injectStyles() {
+    if (document.getElementById('customer-directory-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'customer-directory-styles';
+    style.textContent = [
+      '.cd-backdrop{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:rgba(0,0,0,.4);padding:24px}',
+      '.cd-dialog{width:99vw;height:97vh;max-width:none;display:flex;flex-direction:column;border-radius:var(--radius-lg);background:var(--surface-bright);box-shadow:var(--shadow);overflow:hidden}',
+      '.cd-header{display:flex;align-items:center;gap:14px;padding:18px 22px;border-bottom:1px solid var(--outline-variant)}',
+      '.cd-header h2{margin:0;flex-shrink:0}',
+      '.cd-search{flex:1;min-height:44px;padding:0 14px;border:1px solid var(--outline);border-radius:12px;color:var(--on-surface);background:var(--surface-container);font:inherit}',
+      '.cd-close{flex-shrink:0}',
+      '.cd-body{flex:1;display:grid;grid-template-columns:320px minmax(0,1fr);min-height:0}',
+      '.cd-list{overflow-y:auto;border-right:1px solid var(--outline-variant);padding:10px}',
+      '.cd-list-item{width:100%;text-align:left;display:block;padding:10px 12px;margin-bottom:4px;border:0;border-radius:10px;background:transparent;cursor:pointer;color:var(--on-surface)}',
+      '.cd-list-item:hover{background:var(--surface-container)}',
+      '.cd-list-item.is-active{background:var(--primary-container);color:var(--on-primary-container)}',
+      '.cd-list-item strong{display:block;font-size:13px}',
+      '.cd-list-item span{display:block;font-size:11px;color:inherit;opacity:.75}',
+      '.cd-detail{overflow-y:auto;padding:22px 30px}',
+      '.cd-detail-empty{color:var(--on-surface-variant);text-align:center;margin-top:60px}',
+      '.cd-detail h2{margin:0 0 2px}',
+      '.cd-detail .cd-company{color:var(--on-surface-variant);margin-bottom:20px}',
+      '.cd-field-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 24px}',
+      '.cd-field-grid > div{grid-column:span 1}',
+      '.cd-field-wide{grid-column:1 / -1 !important}',
+      '.cd-field-grid span{display:block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:var(--on-surface-variant);margin-bottom:1px}',
+      '.cd-field-grid strong{display:block;font-size:13px;font-weight:400;color:var(--on-surface)}',
+      '.cd-section-label{grid-column:1 / -1;margin:10px 0 -4px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:var(--on-surface-variant);border-top:1px solid var(--outline-variant);padding-top:10px}',
+      '.cd-section-label:first-child{margin-top:0;border-top:0;padding-top:0}',
+      '.cd-tickets{margin-top:16px;border-top:1px solid var(--outline-variant);padding-top:14px}',
+      '.cd-tickets h3{margin:0 0 12px;font-size:14px}',
+      '.cd-ticket-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;margin-bottom:6px;border:1px solid var(--outline-variant);border-radius:12px;background:var(--surface-bright);cursor:pointer;color:var(--on-surface);font:inherit}',
+      '.cd-ticket-row:hover{background:var(--surface-container)}',
+      '.cd-ticket-id{font-size:11px;font-weight:800;color:var(--primary);flex-shrink:0;width:110px}',
+      '.cd-ticket-subject{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}',
+      '.cd-ticket-meta{flex-shrink:0;display:flex;gap:6px;align-items:center}',
+      '.cd-ticket-meta .chip{font-size:10px}',
+      '.cd-tickets-empty{color:var(--on-surface-variant);font-size:13px}',
+      '.cd-edit-field{display:block}',
+      '.cd-edit-field span{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:var(--on-surface-variant);margin-bottom:4px}',
+      '.cd-edit-field input{width:100%;min-height:40px;padding:0 12px;border:1px solid var(--outline);border-radius:10px;color:var(--on-surface);background:var(--surface-bright);font:inherit}',
+      '.cd-save-row{display:flex;justify-content:flex-end;margin-top:18px}',
+      '.cd-save-row .tonal-button{min-height:44px;padding:0 24px}'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  function closeDialog(backdrop) {
+    if (backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+    document.removeEventListener('keydown', onKeydown);
+  }
+
+  function onKeydown(event) {
+    if (event.key === 'Escape') closeDialog(document.querySelector('.cd-backdrop'));
+  }
+
+  const ENUM_LABELS = {
+    NEW: 'Nuevo', OPEN: 'Abierto', PENDING_CUSTOMER: 'Esperando cliente', RESOLVED: 'Resuelto', CLOSED: 'Cerrado',
+    LOW: 'Baja', NORMAL: 'Normal', HIGH: 'Alta', CRITICAL: 'Crítica'
+  };
+
+  function toneForStatus(status) {
+    if (status === 'RESOLVED' || status === 'CLOSED') return 'success';
+    if (status === 'PENDING_CUSTOMER') return 'warning';
+    return '';
+  }
+
+  function toneForPriority(priority) {
+    if (priority === 'CRITICAL') return 'error';
+    if (priority === 'HIGH') return 'warning';
+    return '';
+  }
+
+  function chip(value, tone) {
+    const span = document.createElement('span');
+    span.className = 'chip';
+    span.textContent = ENUM_LABELS[value] || value || '—';
+    if (tone) span.dataset.tone = tone;
+    return span;
+  }
+
+  function openTicket(backdrop, ticketId) {
+    closeDialog(backdrop);
+    const searchInput = document.getElementById('global-search');
+    if (searchInput) {
+      searchInput.value = ticketId;
+      searchInput.dispatchEvent(new Event('input', {bubbles: true}));
+    }
+    const ticketsNav = document.querySelector('[data-view="tickets"]');
+    if (ticketsNav) ticketsNav.click();
+  }
+
+  function renderTicketList(backdrop, container, tickets) {
+    container.replaceChildren();
+    if (!tickets.length) {
+      const empty = document.createElement('div');
+      empty.className = 'cd-tickets-empty';
+      empty.textContent = 'Este cliente todavía no tiene tickets.';
+      container.appendChild(empty);
+      return;
+    }
+    tickets.forEach(function (ticket) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'cd-ticket-row';
+      const id = document.createElement('span');
+      id.className = 'cd-ticket-id';
+      id.textContent = ticket.id;
+      const subject = document.createElement('span');
+      subject.className = 'cd-ticket-subject';
+      subject.textContent = ticket.subject || '(sin asunto)';
+      const meta = document.createElement('span');
+      meta.className = 'cd-ticket-meta';
+      meta.appendChild(chip(ticket.status, toneForStatus(ticket.status)));
+      meta.appendChild(chip(ticket.priority, toneForPriority(ticket.priority)));
+      row.appendChild(id);
+      row.appendChild(subject);
+      row.appendChild(meta);
+      row.addEventListener('click', function () { openTicket(backdrop, ticket.id); });
+      container.appendChild(row);
+    });
+  }
+
+  function loadTicketsForCustomer(backdrop, container, email) {
+    container.replaceChildren();
+    const loading = document.createElement('div');
+    loading.className = 'cd-tickets-empty';
+    loading.textContent = 'Cargando tickets…';
+    container.appendChild(loading);
+    callServer('getUiTicketsForCustomer', email).then(unwrap).then(function (tickets) {
+      renderTicketList(backdrop, container, tickets || []);
+    }).catch(function (error) {
+      container.replaceChildren();
+      const errorNode = document.createElement('div');
+      errorNode.className = 'cd-tickets-empty';
+      errorNode.textContent = error && error.message ? error.message : String(error);
+      container.appendChild(errorNode);
+    });
+  }
+
+  function displayName(customer) {
+    const full = (customer.firstName || customer.lastName) ? (customer.firstName + ' ' + customer.lastName).trim() : '';
+    return full || customer.name || customer.email || '(sin nombre)';
+  }
+
+  function field(label, value, wide) {
+    const div = document.createElement('div');
+    if (wide) div.className = 'cd-field-wide';
+    const caption = document.createElement('span');
+    caption.textContent = label;
+    const strong = document.createElement('strong');
+    strong.textContent = value || '—';
+    div.appendChild(caption);
+    div.appendChild(strong);
+    return div;
+  }
+
+  function editField(fieldId, label, value, wide) {
+    const label_ = document.createElement('label');
+    label_.className = wide ? 'cd-field-wide cd-edit-field' : 'cd-edit-field';
+    const caption = document.createElement('span');
+    caption.textContent = label;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = fieldId;
+    input.value = value || '';
+    input.defaultValue = input.value;
+    label_.appendChild(caption);
+    label_.appendChild(input);
+    return label_;
+  }
+
+  function valIfChanged(id) {
+    const node = document.getElementById(id);
+    if (!node) return undefined;
+    const current = node.value.trim();
+    return current !== (node.defaultValue || '').trim() ? current : undefined;
+  }
+
+  function sectionLabel(text) {
+    const span = document.createElement('span');
+    span.className = 'cd-section-label';
+    span.textContent = text;
+    return span;
+  }
+
+  function renderDetail(panel, customer) {
+    panel.replaceChildren();
+    if (!customer) {
+      const empty = document.createElement('div');
+      empty.className = 'cd-detail-empty';
+      empty.textContent = 'Selecciona un cliente de la lista.';
+      panel.appendChild(empty);
+      return null;
+    }
+
+    const heading = document.createElement('h2');
+    heading.textContent = displayName(customer);
+    panel.appendChild(heading);
+    if (customer.company) {
+      const company = document.createElement('div');
+      company.className = 'cd-company';
+      company.textContent = customer.company;
+      panel.appendChild(company);
+    }
+
+    const grid = document.createElement('div');
+    grid.className = 'cd-field-grid';
+    grid.appendChild(sectionLabel('Contacto'));
+    grid.appendChild(editField('cd-first-name', 'Nombre', customer.firstName));
+    grid.appendChild(editField('cd-last-name', 'Apellidos', customer.lastName));
+    grid.appendChild(editField('cd-email', 'Email', customer.email));
+    grid.appendChild(editField('cd-phone', 'Teléfono', customer.phone));
+    grid.appendChild(editField('cd-locale', 'Idioma', customer.locale));
+    grid.appendChild(editField('cd-company', 'Empresa', customer.company));
+
+    grid.appendChild(sectionLabel('Dirección'));
+    grid.appendChild(editField('cd-address', 'Dirección', customer.address, true));
+    grid.appendChild(editField('cd-country', 'País', customer.country));
+    grid.appendChild(editField('cd-postal-code', 'Código postal', customer.postalCode));
+
+    grid.appendChild(sectionLabel('Otros'));
+    grid.appendChild(field('ID de cliente', customer.id));
+    grid.appendChild(field('Creado', customer.createdAt));
+    grid.appendChild(field('Actualizado', customer.updatedAt));
+    grid.appendChild(editField('cd-notes', 'Notas', customer.notes, true));
+
+    panel.appendChild(grid);
+
+    const saveRow = document.createElement('div');
+    saveRow.className = 'cd-save-row';
+    const saveButton = document.createElement('button');
+    saveButton.type = 'button';
+    saveButton.className = 'tonal-button';
+    saveButton.textContent = 'Guardar';
+    saveButton.addEventListener('click', function () { saveCustomer(customer, saveButton); });
+    saveRow.appendChild(saveButton);
+    panel.appendChild(saveRow);
+
+    const ticketsSection = document.createElement('div');
+    ticketsSection.className = 'cd-tickets';
+    const ticketsHeading = document.createElement('h3');
+    ticketsHeading.textContent = 'Tickets de este cliente';
+    ticketsSection.appendChild(ticketsHeading);
+    const ticketsList = document.createElement('div');
+    ticketsSection.appendChild(ticketsList);
+    panel.appendChild(ticketsSection);
+
+    return ticketsList;
+  }
+
+  function openDialog() {
+    injectStyles();
+    if (document.querySelector('.cd-backdrop')) return;
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'cd-backdrop';
+    backdrop.setAttribute('role', 'dialog');
+    backdrop.setAttribute('aria-modal', 'true');
+    backdrop.addEventListener('click', function (event) {
+      if (event.target === backdrop) closeDialog(backdrop);
+    });
+
+    backdrop.innerHTML =
+      '<div class="cd-dialog">' +
+        '<div class="cd-header">' +
+          '<h2>Clientes</h2>' +
+          '<input class="cd-search" type="search" placeholder="Buscar por nombre, email, teléfono, empresa...">' +
+          '<button class="text-button cd-close" type="button">Cerrar</button>' +
+        '</div>' +
+        '<div class="cd-body">' +
+          '<div class="cd-list"><div class="cd-detail-empty">Cargando…</div></div>' +
+          '<div class="cd-detail"><div class="cd-detail-empty">Selecciona un cliente de la lista.</div></div>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(backdrop);
+    document.addEventListener('keydown', onKeydown);
+    backdrop.querySelector('.cd-close').addEventListener('click', function () { closeDialog(backdrop); });
+
+    const searchInput = backdrop.querySelector('.cd-search');
+    const list = backdrop.querySelector('.cd-list');
+    const detail = backdrop.querySelector('.cd-detail');
+    let allCustomers = [];
+    let selectedId = '';
+
+    function selectCustomer(customer) {
+      selectedId = customer.id || customer.email;
+      const ticketsList = renderDetail(detail, customer);
+      if (ticketsList && customer.email) loadTicketsForCustomer(backdrop, ticketsList, customer.email);
+      list.querySelectorAll('.cd-list-item').forEach(function (item) {
+        item.classList.toggle('is-active', item.dataset.id === selectedId);
+      });
+    }
+
+    function renderList(customers) {
+      list.replaceChildren();
+      if (!customers.length) {
+        const empty = document.createElement('div');
+        empty.className = 'cd-detail-empty';
+        empty.textContent = 'No se encontraron clientes.';
+        list.appendChild(empty);
+        return;
+      }
+      customers.forEach(function (customer) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'cd-list-item';
+        button.dataset.id = customer.id || customer.email;
+        if (button.dataset.id === selectedId) button.classList.add('is-active');
+        const strong = document.createElement('strong');
+        strong.textContent = displayName(customer);
+        const span = document.createElement('span');
+        span.textContent = customer.email || '';
+        button.appendChild(strong);
+        button.appendChild(span);
+        button.addEventListener('click', function () { selectCustomer(customer); });
+        list.appendChild(button);
+      });
+    }
+
+    searchInput.addEventListener('input', function () {
+      const query = searchInput.value.trim().toLowerCase();
+      if (!query) { renderList(allCustomers); return; }
+      renderList(allCustomers.filter(function (customer) {
+        return [customer.name, customer.firstName, customer.lastName, customer.email, customer.phone, customer.company, customer.address, customer.country]
+          .join(' ').toLowerCase().indexOf(query) !== -1;
+      }));
+    });
+
+    callServer('getUiCustomerDirectory').then(unwrap).then(function (customers) {
+      allCustomers = customers || [];
+      renderList(allCustomers);
+      if (allCustomers.length) selectCustomer(allCustomers[0]);
+      searchInput.focus();
+    }).catch(function (error) {
+      list.innerHTML = '<div class="cd-detail-empty">' + (error && error.message ? error.message : String(error)) + '</div>';
+    });
+  }
+
+  function start() {
+    const button = document.getElementById('customer-directory-button');
+    if (!button) return;
+    button.addEventListener('click', openDialog);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>

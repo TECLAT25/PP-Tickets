@@ -1,0 +1,84 @@
+<script>
+(function () {
+  'use strict';
+
+  var QUEUES = [
+    {id: 'all', label: 'Todos', criteria: {}},
+    {id: 'new', label: 'Nuevos', criteria: {status: 'NEW'}},
+    {id: 'open', label: 'Abiertos', criteria: {status: 'OPEN'}},
+    {id: 'critical', label: 'Críticos', criteria: {priority: 'CRITICAL'}},
+    {id: 'breached', label: 'SLA incumplido', criteria: {slaBreached: true}},
+    {id: 'pending', label: 'Esperando cliente', criteria: {status: 'PENDING_CUSTOMER'}}
+  ];
+
+  function injectStyles() {
+    if (document.getElementById('queue-shortcut-styles')) return;
+    var style = document.createElement('style');
+    style.id = 'queue-shortcut-styles';
+    style.textContent = [
+      '.queue-bar { display: flex; flex-wrap: wrap; gap: 8px; margin: -8px 0 18px; }',
+      '.queue-chip { display: inline-flex; align-items: center; min-height: 38px; padding: 0 12px; border: 1px solid var(--outline-variant); border-radius: 19px; background: var(--surface-bright); color: var(--on-surface); cursor: pointer; font-size: 13px; }',
+      '.queue-chip:hover { background: var(--surface-container-high); }',
+      '.queue-chip.is-active { color: var(--on-primary-container); background: var(--primary-container); border-color: transparent; font-weight: 800; }'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  function byId(id) {
+    return document.getElementById(id);
+  }
+
+  function setControl(id, value) {
+    var control = byId(id);
+    if (!control) return;
+    if (control.type === 'checkbox') {
+      control.checked = Boolean(value);
+    } else {
+      control.value = value || '';
+    }
+    control.dispatchEvent(new Event('change', {bubbles: true}));
+  }
+
+  function activateQueue(id) {
+    document.querySelectorAll('.queue-chip').forEach(function (button) {
+      button.classList.toggle('is-active', button.dataset.queueId === id);
+    });
+  }
+
+  function applyQueue(queue) {
+    activateQueue(queue.id);
+    setControl('filter-status', queue.criteria.status || '');
+    setControl('filter-priority', queue.criteria.priority || '');
+    setControl('filter-category', queue.criteria.category || '');
+    setControl('filter-breached', Boolean(queue.criteria.slaBreached));
+  }
+
+  function createQueueBar() {
+    var ticketsHeading = document.querySelector('#view-tickets .page-heading');
+    if (!ticketsHeading || document.querySelector('.queue-bar')) return;
+    var bar = document.createElement('div');
+    bar.className = 'queue-bar';
+    QUEUES.forEach(function (queue) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'queue-chip' + (queue.id === 'all' ? ' is-active' : '');
+      button.dataset.queueId = queue.id;
+      button.textContent = queue.label;
+      button.addEventListener('click', function () { applyQueue(queue); });
+      bar.appendChild(button);
+    });
+    ticketsHeading.insertAdjacentElement('afterend', bar);
+  }
+
+  function start() {
+    injectStyles();
+    createQueueBar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+})();
+</script>

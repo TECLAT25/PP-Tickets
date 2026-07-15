@@ -1,0 +1,170 @@
+<script>
+(function () {
+  'use strict';
+
+  function fillIfEmpty(id, value) {
+    if (!value) return false;
+    const node = document.getElementById(id);
+    if (!node || node.value.trim()) return false;
+    node.value = value;
+    return true;
+  }
+
+  function callServer(functionName) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      const runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      runner[functionName].apply(runner, args);
+    });
+  }
+
+  function unwrap(response) {
+    if (!response || response.ok !== true) {
+      const error = response && response.error ? response.error : {};
+      throw new Error(error.message || 'El servidor devolvió una respuesta no válida.');
+    }
+    return response.data;
+  }
+
+  function showSnack(message) {
+    const snackbar = document.getElementById('snackbar');
+    if (!snackbar) return;
+    snackbar.textContent = message;
+    snackbar.hidden = false;
+    window.setTimeout(function () { snackbar.hidden = true; }, 6000);
+  }
+
+  async function extractFromMessages(ticketId, button) {
+    button.disabled = true;
+    const previous = button.textContent;
+    button.textContent = 'Analizando\u2026';
+    try {
+      const extracted = await unwrap(await callServer('extractUiFieldsFromMessages', ticketId));
+      let filled = 0;
+      if (fillIfEmpty('cs-first-name', extracted.firstName)) filled += 1;
+      if (fillIfEmpty('cs-last-name', extracted.lastName)) filled += 1;
+      if (fillIfEmpty('cs-phone', extracted.phone)) filled += 1;
+      if (fillIfEmpty('cs-postal-code', extracted.postalCode)) filled += 1;
+      if (fillIfEmpty('cs-country', extracted.country)) filled += 1;
+      if (fillIfEmpty('cs-address', extracted.address)) filled += 1;
+      showSnack(filled ? 'Se han rellenado ' + filled + ' campos desde los mensajes. Revísalos antes de guardar.' : 'No se encontraron datos nuevos en los mensajes.');
+    } catch (error) {
+      showSnack(error && error.message ? error.message : String(error));
+    } finally {
+      button.disabled = false;
+      button.textContent = previous;
+    }
+  }
+
+  function selectedTicketId() {
+    const selected = document.querySelector('[data-ticket-id].is-selected');
+    if (selected && selected.dataset.ticketId) return selected.dataset.ticketId;
+    const eyebrow = document.querySelector('#ticket-detail .detail-header .eyebrow');
+    return eyebrow ? eyebrow.textContent.trim() : '';
+  }
+
+  function currentDetail() {
+    return window.__ticketDetail || {};
+  }
+
+  function injectStyles() {
+    if (document.getElementById('customer-shipping-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'customer-shipping-styles';
+    style.textContent = [
+      '.customer-shipping-actions { display: grid; grid-template-columns: repeat(3, minmax(140px, 1fr)); gap: 12px; margin-top: 12px; padding: 14px; border-radius: 16px; background: var(--surface-container); }',
+      '.customer-shipping-actions .section-label { grid-column: 1 / -1; margin: 4px 0 0; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--on-surface-variant); }',
+      '.customer-shipping-actions .section-label:first-child { margin-top: 0; }',
+      '.cs-field { display: grid; gap: 7px; min-width: 0; color: var(--on-surface-variant); font-size: 12px; font-weight: 800; text-transform: uppercase; }',
+      '.cs-field-wide { grid-column: 1 / -1; }',
+      '.cs-field input { width: 100%; min-height: 40px; padding: 0 12px; border: 1px solid var(--outline); border-radius: 12px; color: var(--on-surface); background: var(--surface-bright); font: inherit; text-transform: none; font-weight: 400; }',
+      '.cs-extract-row { grid-column: 1 / -1; display: flex; justify-content: flex-end; }',
+      '@media (max-width: 700px) { .customer-shipping-actions { grid-template-columns: 1fr; } }'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  function createField(fieldId, name, value, placeholder, wide) {
+    const label = document.createElement('label');
+    label.className = wide ? 'cs-field cs-field-wide' : 'cs-field';
+    const caption = document.createElement('span');
+    caption.textContent = name;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = fieldId;
+    input.value = value || '';
+    input.defaultValue = input.value;
+    input.placeholder = placeholder || '';
+    label.appendChild(caption);
+    label.appendChild(input);
+    return label;
+  }
+
+  function sectionLabel(text) {
+    const span = document.createElement('span');
+    span.className = 'section-label';
+    span.textContent = text;
+    return span;
+  }
+
+  function ensureCustomerShippingControls() {
+    injectStyles();
+    const header = document.querySelector('#ticket-detail .detail-header');
+    if (!header || header.querySelector('.customer-shipping-actions')) return;
+    const ticketId = selectedTicketId();
+    if (!ticketId) return;
+
+    const detail = currentDetail();
+    const ticket = detail.ticket || {};
+    const customer = detail.customer || {};
+
+    const wrap = document.createElement('div');
+    wrap.className = 'customer-shipping-actions';
+
+    const extractRow = document.createElement('div');
+    extractRow.className = 'cs-extract-row';
+    const extractButton = document.createElement('button');
+    extractButton.type = 'button';
+    extractButton.className = 'text-button';
+    extractButton.textContent = 'Extraer datos de los mensajes';
+    extractButton.addEventListener('click', function () { extractFromMessages(ticketId, extractButton); });
+    extractRow.appendChild(extractButton);
+    wrap.appendChild(extractRow);
+
+    wrap.appendChild(sectionLabel('Cliente'));
+    wrap.appendChild(createField('cs-first-name', 'Nombre', customer.firstName, 'Jane'));
+    wrap.appendChild(createField('cs-last-name', 'Apellidos', customer.lastName, 'Doe'));
+    wrap.appendChild(createField('cs-phone', 'Teléfono', customer.phone, '+34 600 000 000'));
+    wrap.appendChild(createField('cs-address', 'Dirección', customer.address, 'Calle, ciudad, código postal', true));
+    wrap.appendChild(createField('cs-country', 'País', customer.country, 'España'));
+    wrap.appendChild(createField('cs-postal-code', 'Código postal', customer.postalCode, '08001'));
+
+    wrap.appendChild(sectionLabel('Envío'));
+    wrap.appendChild(createField('cs-recipient-first-name', 'Nombre del destinatario', ticket.shippingRecipientFirstName, 'Quién recibe el paquete'));
+    wrap.appendChild(createField('cs-recipient-last-name', 'Apellidos del destinatario', ticket.shippingRecipientLastName, ''));
+    wrap.appendChild(createField('cs-recipient-phone', 'Teléfono del destinatario', ticket.shippingRecipientPhone, 'Teléfono de contacto'));
+    wrap.appendChild(createField('cs-shipping-address', 'Dirección de envío', ticket.shippingAddress, 'Si es distinta de la dirección del cliente', true));
+    wrap.appendChild(createField('cs-recipient-country', 'País del destinatario', ticket.shippingRecipientCountry, 'España'));
+    wrap.appendChild(createField('cs-recipient-postal-code', 'Código postal del destinatario', ticket.shippingRecipientPostalCode, '08001'));
+
+    header.appendChild(wrap);
+  }
+
+  const observer = new MutationObserver(function () {
+    ensureCustomerShippingControls();
+  });
+
+  function start() {
+    const panel = document.getElementById('ticket-detail');
+    if (!panel) return;
+    observer.observe(panel, {childList: true, subtree: true});
+    ensureCustomerShippingControls();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+})();
+</script>

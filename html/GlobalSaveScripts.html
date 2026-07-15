@@ -1,0 +1,119 @@
+<script>
+(function () {
+  'use strict';
+
+  function callServer(functionName) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      const runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      runner[functionName].apply(runner, args);
+    });
+  }
+
+  function unwrap(response) {
+    if (!response || response.ok !== true) {
+      const error = response && response.error ? response.error : {};
+      throw new Error(error.message || 'El servidor devolvió una respuesta no válida.');
+    }
+    return response.data;
+  }
+
+  function showSnack(message) {
+    const snackbar = document.getElementById('snackbar');
+    if (!snackbar) return;
+    snackbar.textContent = message;
+    snackbar.hidden = false;
+    window.setTimeout(function () { snackbar.hidden = true; }, 6000);
+  }
+
+  function refreshViews() {
+    document.querySelectorAll('[data-action="refresh"]').forEach(function (button) { button.click(); });
+  }
+
+  function selectedTicketId() {
+    const selected = document.querySelector('[data-ticket-id].is-selected');
+    if (selected && selected.dataset.ticketId) return selected.dataset.ticketId;
+    const eyebrow = document.querySelector('#ticket-detail .detail-header .eyebrow');
+    return eyebrow ? eyebrow.textContent.trim() : '';
+  }
+
+  function val(id) {
+    const node = document.getElementById(id);
+    return node ? node.value.trim() : null;
+  }
+
+  function valIfChanged(id) {
+    const node = document.getElementById(id);
+    if (!node) return undefined;
+    const current = node.value.trim();
+    let original;
+    if (node.type === 'hidden') {
+      original = node.dataset.original || '';
+    } else if (node.tagName === 'SELECT') {
+      original = node.dataset.initialValue || '';
+    } else {
+      original = node.defaultValue || '';
+    }
+    return current !== original.trim() ? current : undefined;
+  }
+
+  async function saveEverything() {
+    const button = document.getElementById('global-save-button');
+    const ticketId = selectedTicketId();
+    if (!ticketId) {
+      showSnack('Selecciona un ticket primero.');
+      return;
+    }
+
+    button.disabled = true;
+    const previous = button.innerHTML;
+    button.innerHTML = '<span class="spinner" aria-hidden="true"></span>Guardando\u2026';
+
+    try {
+      const payload = {};
+      const ticketFields = ['ta-status', 'ta-priority', 'ta-category', 'ta-assigned-to', 'ta-tags', 'ticket-notes', 'ticket-detected-errors', 'ticket-detected-solutions'];
+      const ticketKeys = {'ta-status': 'status', 'ta-priority': 'priority', 'ta-category': 'category', 'ta-assigned-to': 'assignedTo', 'ta-tags': 'tags', 'ticket-notes': 'notes', 'ticket-detected-errors': 'detectedErrors', 'ticket-detected-solutions': 'detectedSolutions'};
+      ticketFields.forEach(function (id) {
+        const changed = valIfChanged(id);
+        if (changed !== undefined) payload[ticketKeys[id]] = changed;
+      });
+
+      const csFields = {
+        'cs-first-name': 'firstName', 'cs-last-name': 'lastName', 'cs-phone': 'phone',
+        'cs-address': 'address', 'cs-country': 'country', 'cs-postal-code': 'postalCode',
+        'cs-shipping-address': 'shippingAddress', 'cs-recipient-first-name': 'shippingRecipientFirstName',
+        'cs-recipient-last-name': 'shippingRecipientLastName', 'cs-recipient-phone': 'shippingRecipientPhone',
+        'cs-recipient-country': 'shippingRecipientCountry', 'cs-recipient-postal-code': 'shippingRecipientPostalCode'
+      };
+      Object.keys(csFields).forEach(function (id) {
+        const changed = valIfChanged(id);
+        if (changed !== undefined) payload[csFields[id]] = changed;
+      });
+
+      if (!Object.keys(payload).length) {
+        showSnack('No hay cambios que guardar.');
+        return;
+      }
+
+      await unwrap(await callServer('saveUiTicketForm', ticketId, payload));
+
+      showSnack('Cambios guardados para ' + ticketId + ': ' + Object.keys(payload).join(', ') + '.');
+      refreshViews();
+    } catch (error) {
+      showSnack(error && error.message ? error.message : String(error));
+    } finally {
+      button.disabled = false;
+      button.innerHTML = previous;
+    }
+  }
+
+  function start() {
+    const button = document.getElementById('global-save-button');
+    if (!button) return;
+    button.addEventListener('click', saveEverything);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>

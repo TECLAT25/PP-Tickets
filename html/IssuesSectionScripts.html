@@ -1,0 +1,255 @@
+<script>
+(function () {
+  'use strict';
+
+  function callServer(functionName) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      const runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      runner[functionName].apply(runner, args);
+    });
+  }
+
+  function unwrap(response) {
+    if (!response || response.ok !== true) {
+      const error = response && response.error ? response.error : {};
+      throw new Error(error.message || 'El servidor devolvió una respuesta no válida.');
+    }
+    return response.data;
+  }
+
+  function selectedTicketId() {
+    const selected = document.querySelector('[data-ticket-id].is-selected');
+    if (selected && selected.dataset.ticketId) return selected.dataset.ticketId;
+    const eyebrow = document.querySelector('#ticket-detail .detail-header .eyebrow');
+    return eyebrow ? eyebrow.textContent.trim() : '';
+  }
+
+  function currentDetail() {
+    return window.__ticketDetail || {};
+  }
+
+  function injectStyles() {
+    if (document.getElementById('detected-issues-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'detected-issues-styles';
+    style.textContent = [
+      '.issues-section { padding: 16px 22px; border-top: 1px solid var(--outline-variant); display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }',
+      '.issues-column h3 { margin: 0 0 10px; font-size: 14px; }',
+      '.issues-add-button { width: 30px; height: 30px; border-radius: 50%; border: 1px dashed var(--outline); background: transparent; color: var(--primary); cursor: pointer; font-size: 16px; line-height: 1; }',
+      '.issues-list { margin-top: 10px; display: grid; gap: 6px; }',
+      '.issue-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 8px 8px 14px; border: 1px solid var(--outline-variant); border-radius: 10px; background: var(--surface-container); font-size: 13px; }',
+      '.issue-delete-button { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--error); cursor: pointer; }',
+      '.issue-delete-button:hover { background: var(--error-container); }',
+      '.issue-delete-button .material-symbols-rounded { font-size: 18px; }',
+      '.issues-empty { font-size: 12px; color: var(--on-surface-variant); }',
+      '.issues-picker { position: relative; margin-top: 4px; }',
+      '.issues-picker-menu { position: absolute; top: 36px; left: 0; z-index: 20; width: 280px; max-height: 260px; overflow-y: auto; border: 1px solid var(--outline-variant); border-radius: 12px; background: var(--surface-bright); box-shadow: var(--shadow); padding: 6px; }',
+      '.issues-picker-item { display: block; width: 100%; text-align: left; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; font-size: 12px; color: var(--on-surface); }',
+      '.issues-picker-item:hover { background: var(--surface-container); }',
+      '.issues-picker-item strong { display: block; font-size: 12px; }',
+      '.issues-picker-item span { display: block; font-size: 10px; color: var(--on-surface-variant); }',
+      '.issues-picker-empty { padding: 10px; font-size: 12px; color: var(--on-surface-variant); }',
+      '@media (max-width: 900px) { .issues-section { grid-template-columns: 1fr; } }'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  /**
+   * Builds one column (Errores or Soluciones). Each column keeps its own
+   * catalog cache and hidden input, but shares all the rendering logic.
+   * @param {{title:string, ticketField:string, hiddenId:string, catalogFn:string, sheetName:string, addLabel:string, emptyLabel:string, deleteLabel:string}} config
+   */
+  function createColumn(config) {
+    let catalogCache = null;
+    let originalValue = null;
+    function loadCatalog() {
+      if (catalogCache) return Promise.resolve(catalogCache);
+      return callServer(config.catalogFn).then(unwrap).then(function (catalog) {
+        catalogCache = catalog || [];
+        return catalogCache;
+      });
+    }
+
+    function currentItems() {
+      const detail = currentDetail();
+      const raw = (detail.ticket && detail.ticket[config.ticketField]) || '';
+      return raw.split(',').map(function (item) { return item.trim(); }).filter(Boolean);
+    }
+
+    function closePicker() {
+      const menu = document.querySelector('.issues-picker-menu[data-owner="' + config.hiddenId + '"]');
+      if (menu) menu.remove();
+      document.removeEventListener('click', onOutsideClick);
+    }
+
+    function onOutsideClick(event) {
+      if (!event.target.closest('.issues-picker[data-owner="' + config.hiddenId + '"]')) closePicker();
+    }
+
+    function openPicker(picker, container, currentList) {
+      const menu = document.createElement('div');
+      menu.className = 'issues-picker-menu';
+      menu.dataset.owner = config.hiddenId;
+      menu.innerHTML = '<div class="issues-picker-empty">Cargando…</div>';
+      picker.appendChild(menu);
+      window.setTimeout(function () { document.addEventListener('click', onOutsideClick); }, 0);
+
+      loadCatalog().then(function (catalog) {
+        const available = catalog.filter(function (entry) { return currentList.indexOf(entry.code) === -1; });
+        menu.replaceChildren();
+        if (!available.length) {
+          const empty = document.createElement('div');
+          empty.className = 'issues-picker-empty';
+          empty.textContent = catalog.length ? 'Ya están todos añadidos.' : 'No hay elementos definidos en la hoja "' + config.sheetName + '".';
+          menu.appendChild(empty);
+          return;
+        }
+        available.forEach(function (entry) {
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'issues-picker-item';
+          item.innerHTML = '<strong>' + entry.code + '</strong>' + (entry.description ? '<span>' + entry.description + '</span>' : '');
+          item.addEventListener('click', function () {
+            const hidden = document.getElementById(config.hiddenId);
+            const updated = currentList.concat([entry.code]);
+            hidden.value = updated.join(', ');
+            closePicker();
+            render(container, updated);
+          });
+          menu.appendChild(item);
+        });
+      }).catch(function (error) {
+        menu.innerHTML = '<div class="issues-picker-empty">' + (error && error.message ? error.message : String(error)) + '</div>';
+      });
+    }
+
+    function render(container, overrideItems) {
+      container.replaceChildren();
+      container.className = 'issues-column';
+
+      const heading = document.createElement('h3');
+      heading.textContent = config.title;
+      container.appendChild(heading);
+
+      const items = overrideItems || currentItems();
+      if (originalValue === null) originalValue = currentItems().join(', ');
+      const hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.id = config.hiddenId;
+      hidden.value = items.join(', ');
+      hidden.dataset.original = originalValue;
+      container.appendChild(hidden);
+
+      const picker = document.createElement('div');
+      picker.className = 'issues-picker';
+      picker.dataset.owner = config.hiddenId;
+      const addButton = document.createElement('button');
+      addButton.type = 'button';
+      addButton.className = 'issues-add-button';
+      addButton.title = config.addLabel;
+      addButton.setAttribute('aria-label', config.addLabel);
+      addButton.textContent = '+';
+      addButton.addEventListener('click', function (event) {
+        event.stopPropagation();
+        closePicker();
+        openPicker(picker, container, items);
+      });
+      picker.appendChild(addButton);
+      container.appendChild(picker);
+
+      const list = document.createElement('div');
+      list.className = 'issues-list';
+
+      if (!items.length) {
+        const empty = document.createElement('span');
+        empty.className = 'issues-empty';
+        empty.textContent = config.emptyLabel;
+        list.appendChild(empty);
+      }
+
+      items.forEach(function (code) {
+        const row = document.createElement('div');
+        row.className = 'issue-row';
+        const label = document.createElement('span');
+        label.textContent = code;
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'issue-delete-button';
+        removeButton.title = 'Eliminar';
+        removeButton.setAttribute('aria-label', config.deleteLabel);
+        removeButton.innerHTML = '<span class="material-symbols-rounded" aria-hidden="true">delete</span>';
+        removeButton.addEventListener('click', function () {
+          const updated = items.filter(function (item) { return item !== code; });
+          hidden.value = updated.join(', ');
+          render(container, updated);
+        });
+        row.appendChild(label);
+        row.appendChild(removeButton);
+        list.appendChild(row);
+      });
+
+      container.appendChild(list);
+    }
+
+    return {
+      render: render,
+      reset: function () { originalValue = null; }
+    };
+  }
+
+  const errorsColumn = createColumn({
+    title: 'Errores detectados',
+    ticketField: 'detectedErrors',
+    hiddenId: 'ticket-detected-errors',
+    catalogFn: 'getUiErrorCatalog',
+    sheetName: 'Errors',
+    addLabel: 'Añadir error',
+    emptyLabel: 'Sin errores registrados.',
+    deleteLabel: 'Eliminar error'
+  });
+
+  const solutionsColumn = createColumn({
+    title: 'Soluciones',
+    ticketField: 'detectedSolutions',
+    hiddenId: 'ticket-detected-solutions',
+    catalogFn: 'getUiSolutionCatalog',
+    sheetName: 'Solutions',
+    addLabel: 'Añadir solución',
+    emptyLabel: 'Sin soluciones registradas.',
+    deleteLabel: 'Eliminar solución'
+  });
+
+  function ensureIssuesSection() {
+    const section = document.getElementById('detected-errors-section');
+    if (!section || section.dataset.rendered === 'true') return;
+    section.dataset.rendered = 'true';
+    injectStyles();
+    section.className = 'issues-section';
+
+    const left = document.createElement('div');
+    const right = document.createElement('div');
+    section.appendChild(left);
+    section.appendChild(right);
+
+    errorsColumn.reset();
+    solutionsColumn.reset();
+    errorsColumn.render(left);
+    solutionsColumn.render(right);
+  }
+
+  const observer = new MutationObserver(function () {
+    ensureIssuesSection();
+  });
+
+  function start() {
+    const panel = document.getElementById('ticket-detail');
+    if (!panel) return;
+    observer.observe(panel, {childList: true, subtree: true});
+    ensureIssuesSection();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>

@@ -1,0 +1,130 @@
+<script>
+(function () {
+  'use strict';
+
+  const OPTIONS = {
+    status: ['NEW', 'OPEN', 'PENDING_CUSTOMER', 'RESOLVED', 'CLOSED'],
+    priority: ['LOW', 'NORMAL', 'HIGH', 'CRITICAL'],
+    category: ['GENERAL', 'TECHNICAL', 'WARRANTY', 'SHIPPING', 'BILLING', 'PRODUCT', 'OTHER']
+  };
+
+  function selectedTicketId() {
+    const selected = document.querySelector('[data-ticket-id].is-selected');
+    if (selected && selected.dataset.ticketId) return selected.dataset.ticketId;
+    const eyebrow = document.querySelector('#ticket-detail .detail-header .eyebrow');
+    return eyebrow ? eyebrow.textContent.trim() : '';
+  }
+
+  function selectedValueFromChip(index) {
+    const chips = document.querySelectorAll('#ticket-detail .detail-chips .chip');
+    return chips[index] ? (chips[index].dataset.value || chips[index].textContent.trim().toUpperCase().replace(/ /g, '_')) : '';
+  }
+
+  function detailFieldValue(label) {
+    const fields = document.querySelectorAll('#ticket-detail .detail-field');
+    for (let index = 0; index < fields.length; index += 1) {
+      const title = fields[index].querySelector('dt');
+      const value = fields[index].querySelector('dd');
+      if (title && value && title.textContent.trim().toLowerCase() === label.toLowerCase()) {
+        return value.textContent.trim();
+      }
+    }
+    return '';
+  }
+
+  const ENUM_LABELS = {
+    NEW: 'Nuevo', OPEN: 'Abierto', PENDING_CUSTOMER: 'Esperando cliente', RESOLVED: 'Resuelto', CLOSED: 'Cerrado',
+    LOW: 'Baja', NORMAL: 'Normal', HIGH: 'Alta', CRITICAL: 'Crítica',
+    GENERAL: 'General', TECHNICAL: 'Técnico', WARRANTY: 'Garantía', SHIPPING: 'Envío', BILLING: 'Facturación', PRODUCT: 'Producto', OTHER: 'Otro'
+  };
+
+  function createSelect(fieldId, name, options, currentValue) {
+    const label = document.createElement('label');
+    label.className = 'ticket-action-field';
+    const caption = document.createElement('span');
+    caption.textContent = name;
+    const select = document.createElement('select');
+    select.id = fieldId;
+    select.dataset.initialValue = currentValue || '';
+    options.forEach(function (value) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = ENUM_LABELS[value] || value.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, function (letter) {
+        return letter.toUpperCase();
+      });
+      if (value === currentValue) option.selected = true;
+      select.appendChild(option);
+    });
+    label.appendChild(caption);
+    label.appendChild(select);
+    return label;
+  }
+
+  function createTextField(fieldId, name, value, placeholder) {
+    const label = document.createElement('label');
+    label.className = 'ticket-action-field ticket-action-field-wide';
+    const caption = document.createElement('span');
+    caption.textContent = name;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = fieldId;
+    input.value = value === '—' ? '' : (value || '');
+    input.defaultValue = input.value;
+    input.placeholder = placeholder || '';
+    label.appendChild(caption);
+    label.appendChild(input);
+    return label;
+  }
+
+  function injectStyles() {
+    if (document.getElementById('ticket-action-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'ticket-action-styles';
+    style.textContent = [
+      '.ticket-actions { display: grid; grid-template-columns: repeat(3, minmax(170px, 1fr)); gap: 12px; margin-top: 16px; padding: 14px; border-radius: 16px; background: var(--surface-container); }',
+      '.ticket-action-field { display: grid; gap: 7px; min-width: 0; color: var(--on-surface-variant); font-size: 12px; font-weight: 800; text-transform: uppercase; }',
+      '.ticket-action-field select, .ticket-action-field input { width: 100%; min-height: 46px; border: 1px solid var(--outline); border-radius: 12px; color: var(--on-surface); background: var(--surface-bright); font: inherit; }',
+      '.ticket-action-field select { padding: 0 12px; }',
+      '.ticket-action-field input { padding: 0 14px; }',
+      '.ticket-action-field-wide { grid-column: span 3; }',
+      '@media (max-width: 900px) { .ticket-actions { grid-template-columns: 1fr; } .ticket-action-field-wide { grid-column: span 1; } }'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  function ensureTicketControls() {
+    injectStyles();
+    const header = document.querySelector('#ticket-detail .detail-header');
+    if (!header || header.querySelector('.ticket-actions')) return;
+    if (!selectedTicketId()) return;
+
+    const actions = document.createElement('div');
+    actions.className = 'ticket-actions';
+    actions.appendChild(createSelect('ta-status', 'Estado', OPTIONS.status, selectedValueFromChip(0)));
+    actions.appendChild(createSelect('ta-priority', 'Prioridad', OPTIONS.priority, selectedValueFromChip(1)));
+    actions.appendChild(createSelect('ta-category', 'Categoría', OPTIONS.category, selectedValueFromChip(2)));
+    const assigneeValue = detailFieldValue('Assignee');
+    actions.appendChild(createTextField('ta-assigned-to', 'Asignado a', assigneeValue === 'Sin asignar' ? '' : assigneeValue, 'email o nombre'));
+    actions.appendChild(createTextField('ta-tags', 'Etiquetas', detailFieldValue('Tags'), 'etiqueta1, etiqueta2, etiqueta3'));
+
+    header.appendChild(actions);
+  }
+
+  const observer = new MutationObserver(function () {
+    ensureTicketControls();
+  });
+
+  function start() {
+    const panel = document.getElementById('ticket-detail');
+    if (!panel) return;
+    observer.observe(panel, {childList: true, subtree: true});
+    ensureTicketControls();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+})();
+</script>
