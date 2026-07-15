@@ -1,3 +1,13 @@
+﻿# auto-merge-on-install.ps1
+# La fusion de tickets duplicados ahora se ejecuta sola dentro de
+# install() la proxima vez que lo ejecutes (una unica vez, protegida
+# con una marca para no repetirse).
+$ErrorActionPreference = "Stop"
+$root = Get-Location
+$enc = New-Object System.Text.UTF8Encoding($false)
+
+Write-Host "Escribiendo src/install.gs..." -ForegroundColor Cyan
+$v0 = @'
 /** Installer for the complete PP Tickets workspace. */
 class AppInstaller {
   /**
@@ -311,3 +321,14 @@ class AppInstaller {
 function install() {
   return AppInstaller.run();
 }
+'@
+[System.IO.File]::WriteAllText((Join-Path $root "src\install.gs"), $v0, $enc)
+Write-Host "  [OK]" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "Verificando..." -ForegroundColor Cyan
+Select-String -Path src\install.gs -Pattern "mergeDuplicateOpenTickets_"
+
+Write-Host ""
+Write-Host "Si salieron lineas arriba, ejecuta: npm test  y  npm run deploy" -ForegroundColor Cyan
+Write-Host "Luego ejecuta install() una vez (lo normal) para disparar la fusion." -ForegroundColor Cyan
