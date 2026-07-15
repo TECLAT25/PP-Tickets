@@ -1,3 +1,10 @@
+﻿# fix-draft-no-thread.ps1
+$ErrorActionPreference = "Stop"
+$root = Get-Location
+$enc = New-Object System.Text.UTF8Encoding($false)
+
+Write-Host "Escribiendo src/drafts.gs..." -ForegroundColor Cyan
+$v0 = @'
 /**
  * Gmail draft generation for support tickets.
  *
@@ -214,3 +221,13 @@ function createDraftReplyService_() {
 function createDraftForTicket(ticketId, templateKey, customBody) {
   return createDraftReplyService_().createForTicket(ticketId, templateKey || 'DEFAULT_SUPPORT_REPLY', customBody);
 }
+'@
+[System.IO.File]::WriteAllText((Join-Path $root "src\drafts.gs"), $v0, $enc)
+Write-Host "  [OK]" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "Verificando..." -ForegroundColor Cyan
+Select-String -Path src\drafts.gs -Pattern "No linked Gmail thread|new draft created|New draft created"
+
+Write-Host ""
+Write-Host "Si salio arriba, ejecuta: npm test  y  npm run deploy" -ForegroundColor Cyan
