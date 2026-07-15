@@ -31,6 +31,18 @@ class FakeTicketRepository {
   findByThreadId(threadId) {
     return this.ticket && this.ticket.threadId === threadId ? this.ticket : null;
   }
+  search(criteria) {
+    const items = (this.ticket && (!criteria.customerEmail || this.ticket.customerEmail === criteria.customerEmail)) ? [this.ticket] : [];
+    return {items: items, total: items.length, offset: 0, limit: criteria.limit || 100};
+  }
+  update(ticketId, changes) {
+    if (this.ticket && this.ticket.id === ticketId) {
+      Object.assign(this.ticket, changes);
+      this.updated.push({ticket: this.ticket, changes: changes});
+      return this.ticket;
+    }
+    return null;
+  }
   create(record) {
     this.ticket = Object.assign({rowNumber: 2, driveFolderId: ''}, record);
     this.created.push(this.ticket);

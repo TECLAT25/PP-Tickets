@@ -47,7 +47,8 @@
       result.createdMessages + ' mensajes añadidos, ' +
       result.attachments + ' adjuntos guardados, ' +
       result.failedThreads + ' hilos fallidos, ' +
-      (result.excludedThreads || 0) + ' remitentes excluidos.';
+      (result.excludedThreads || 0) + ' remitentes excluidos, ' +
+      (result.linkedTickets || 0) + ' tickets huérfanos vinculados.';
   }
 
   function clickRefreshButtons() {

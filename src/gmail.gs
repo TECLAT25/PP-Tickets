@@ -65,7 +65,8 @@ class GmailSyncEngine {
       attachments: 0,
       customersUpserted: 0,
       failedThreads: 0,
-      excludedThreads: 0
+      excludedThreads: 0,
+      linkedTickets: 0
     };
 
     threads.forEach(function(thread) {
@@ -119,6 +120,15 @@ class GmailSyncEngine {
     }) : null;
     if (customer) {
       summary.customersUpserted += 1;
+    }
+
+    if (!ticket && customerEmail) {
+      const orphan = this.findThreadlessTicket_(customerEmail, firstMessage.subject);
+      if (orphan) {
+        ticket = this.tickets_.update(orphan.id, {threadId: thread.id, updatedAt: this.clock_()});
+        summary.linkedTickets = (summary.linkedTickets || 0) + 1;
+        this.logger_.info('Linked an orphaned threadless ticket to its Gmail thread.', {ticketId: orphan.id, threadId: thread.id});
+      }
     }
 
     if (!ticket) {
@@ -178,6 +188,38 @@ class GmailSyncEngine {
       version: this.version_
     });
     summary.updatedTickets += 1;
+  }
+
+  /**
+   * Finds an existing ticket for this customer that has no Gmail thread
+   * linked yet (e.g. created via "Nuevo ticket" or a draft sent manually
+   * before this thread existed), with a matching subject. Used to avoid
+   * creating a duplicate ticket when that email is later found in Gmail.
+   * @param {string} customerEmail
+   * @param {string} subject
+   * @return {Object|null}
+   * @private
+   */
+  findThreadlessTicket_(customerEmail, subject) {
+    const normalize = function(value) {
+      return String(value || '')
+        .replace(/^(re|fwd?|fw)\s*:\s*/gi, '')
+        .trim()
+        .toLowerCase();
+    };
+    const targetSubject = normalize(subject);
+    if (!targetSubject) return null;
+
+    const result = this.tickets_.search({customerEmail: customerEmail, limit: 50});
+    const candidates = result.items.filter(function(candidate) {
+      return !candidate.threadId && normalize(candidate.subject) === targetSubject;
+    });
+    if (!candidates.length) return null;
+
+    candidates.sort(function(left, right) {
+      return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+    });
+    return candidates[0];
   }
 
   /** @param {string} from @param {string} mailbox @return {string} @private */
