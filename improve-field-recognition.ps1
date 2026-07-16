@@ -1,3 +1,15 @@
+﻿# improve-field-recognition.ps1
+# Mejora el reconocimiento del agente: direcciones sin palabra "calle",
+# mas tipos de via (paseo, plaza, avenida...), numero de serie sin
+# separadores o con puntos, C.P. como abreviatura, poblacion en la
+# linea siguiente al codigo postal, y arregla un fallo donde el codigo
+# postal con etiqueta se comia parte del texto de la linea siguiente.
+$ErrorActionPreference = "Stop"
+$root = Get-Location
+$enc = New-Object System.Text.UTF8Encoding($false)
+
+Write-Host "Escribiendo src/extraction.gs..." -ForegroundColor Cyan
+$v0 = @'
 /**
  * Best-effort extraction of structured fields (name, phone, postal code,
  * country, street address) from email headers and free-text bodies. This
@@ -381,3 +393,13 @@ class MessageFieldExtractor {
       .map(function(item) { return item.code; });
   }
 }
+'@
+[System.IO.File]::WriteAllText((Join-Path $root "src\extraction.gs"), $v0, $enc)
+Write-Host "  [OK]" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "Verificando..." -ForegroundColor Cyan
+Select-String -Path src\extraction.gs -Pattern "c\.p\.\?"
+
+Write-Host ""
+Write-Host "Si salio arriba, ejecuta: npm test  y  npm run deploy" -ForegroundColor Cyan
