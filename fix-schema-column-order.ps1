@@ -1,3 +1,10 @@
+﻿# fix-schema-column-order.ps1
+$ErrorActionPreference = "Stop"
+$root = Get-Location
+$enc = New-Object System.Text.UTF8Encoding($false)
+
+Write-Host "Escribiendo src/constants.gs..." -ForegroundColor Cyan
+$v0 = @'
 /** Immutable application constants. @const */
 const APP = Object.freeze({
   NAME: 'PP Tickets',
@@ -86,3 +93,14 @@ const DEFAULT_SETTINGS = Object.freeze([
   Object.freeze(['SLA_HIGH_HOURS', '12', 'Response target for high-priority tickets']),
   Object.freeze(['SLA_CRITICAL_HOURS', '4', 'Response target for critical tickets'])
 ]);
+'@
+[System.IO.File]::WriteAllText((Join-Path $root "src\constants.gs"), $v0, $enc)
+Write-Host "  [OK]" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "Verificando..." -ForegroundColor Cyan
+Select-String -Path src\constants.gs -Pattern "Shipping Recipient City"
+
+Write-Host ""
+Write-Host "Si salio arriba, ejecuta: npm test  y  npm run deploy" -ForegroundColor Cyan
+Write-Host "Luego ejecuta install() de nuevo." -ForegroundColor Cyan
