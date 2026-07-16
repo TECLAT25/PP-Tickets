@@ -1,3 +1,10 @@
+﻿# add-city-to-customer-directory.ps1
+$ErrorActionPreference = "Stop"
+$root = Get-Location
+$enc = New-Object System.Text.UTF8Encoding($false)
+
+Write-Host "Escribiendo html/CustomerDirectoryScripts.html..." -ForegroundColor Cyan
+$v0 = @'
 <script>
 (function () {
   'use strict';
@@ -418,3 +425,13 @@
   else start();
 })();
 </script>
+'@
+[System.IO.File]::WriteAllText((Join-Path $root "html\CustomerDirectoryScripts.html"), $v0, $enc)
+Write-Host "  [OK]" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "Verificando..." -ForegroundColor Cyan
+Select-String -Path html\CustomerDirectoryScripts.html -Pattern "cd-city"
+
+Write-Host ""
+Write-Host "Si salieron lineas arriba, ejecuta: npm test  y  npm run deploy" -ForegroundColor Cyan
