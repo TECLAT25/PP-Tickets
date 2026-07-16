@@ -108,7 +108,7 @@ function testSearchAndFilters() {
   assert.equal(test.manager.search({category: 'TECHNICAL'}).total, 1);
   assert.equal(test.manager.search({priority: 'CRITICAL'}).total, 1);
   assert.equal(test.manager.search({query: 'shipping'}).items[0].category, 'SHIPPING');
-  assert.deepEqual(test.manager.filters().statuses, ['NEW', 'OPEN', 'PENDING_CUSTOMER', 'RESOLVED', 'CLOSED']);
+  assert.deepEqual(test.manager.filters().statuses, ['NEW', 'OPEN', 'PENDING_CUSTOMER', 'RESOLVED', 'CLOSED', 'VOID']);
 }
 
 function testDashboardMetrics() {

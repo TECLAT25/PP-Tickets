@@ -7,7 +7,7 @@ class TicketPolicy {
 
   /** @return {Array<string>} */
   static statuses() {
-    return ['NEW', 'OPEN', 'PENDING_CUSTOMER', 'RESOLVED', 'CLOSED'];
+    return ['NEW', 'OPEN', 'PENDING_CUSTOMER', 'RESOLVED', 'CLOSED', 'VOID'];
   }
 
   /** @return {Array<string>} */

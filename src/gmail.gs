@@ -213,7 +213,7 @@ class GmailSyncEngine {
 
     const result = this.tickets_.search({customerEmail: customerEmail, limit: 50});
     const candidates = result.items.filter(function(candidate) {
-      return candidate.status !== 'CLOSED';
+      return candidate.status !== 'CLOSED' && candidate.status !== 'VOID';
     });
     if (!candidates.length) return null;
 
