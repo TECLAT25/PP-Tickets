@@ -85,7 +85,7 @@
         '<div class="new-ticket-row cols-2">' +
           '<label class="new-ticket-field"><span>Email del cliente</span><input id="nt-email" type="email" placeholder="cliente@ejemplo.com"></label>' +
           '<label class="new-ticket-field"><span>Prioridad</span>' +
-            '<select id="nt-priority">' +
+            '<select id="nt-priority" class="color-coded" data-value="NORMAL">' +
               '<option value="NORMAL" selected>Normal</option>' +
               '<option value="LOW">Baja</option>' +
               '<option value="HIGH">Alta</option>' +
@@ -134,6 +134,9 @@
     document.addEventListener('keydown', onKeydown);
     document.getElementById('nt-subject').focus();
 
+    document.getElementById('nt-priority').addEventListener('change', function (event) {
+      event.target.dataset.value = event.target.value;
+    });
     document.getElementById('new-ticket-cancel').addEventListener('click', function () {
       closeDialog(backdrop);
     });

@@ -420,11 +420,16 @@
   }
 
   function populateSelect(select, values) {
+    select.classList.add('color-coded');
+    select.dataset.value = select.value || '';
     values.forEach(function (value) {
       const option = document.createElement('option');
       option.value = value;
       option.textContent = ENUM_LABELS[String(value).toUpperCase()] || titleCase(value);
       select.appendChild(option);
+    });
+    select.addEventListener('change', function () {
+      select.dataset.value = select.value;
     });
   }
 

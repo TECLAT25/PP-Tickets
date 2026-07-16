@@ -49,7 +49,9 @@
     caption.textContent = name;
     const select = document.createElement('select');
     select.id = fieldId;
+    select.className = 'color-coded';
     select.dataset.initialValue = currentValue || '';
+    select.dataset.value = currentValue || '';
     options.forEach(function (value) {
       const option = document.createElement('option');
       option.value = value;
@@ -58,6 +60,9 @@
       });
       if (value === currentValue) option.selected = true;
       select.appendChild(option);
+    });
+    select.addEventListener('change', function () {
+      select.dataset.value = select.value;
     });
     label.appendChild(caption);
     label.appendChild(select);

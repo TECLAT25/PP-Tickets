@@ -20,6 +20,20 @@
     --success-container: #e3f3e8;
     --warning: #8a5c19;
     --warning-container: #faf0dd;
+    --info: #1c5e94;
+    --info-container: #dcecfa;
+    --pending: #a8571a;
+    --pending-container: #fce4d1;
+    --neutral: #5c554b;
+    --neutral-container: #e6e0d6;
+    --cat-technical: #5b4ea6;
+    --cat-technical-container: #e9e4f9;
+    --cat-warranty: #146b63;
+    --cat-warranty-container: #d9f0ec;
+    --cat-billing: #a02163;
+    --cat-billing-container: #fbdeeb;
+    --cat-product: #7a3d9c;
+    --cat-product-container: #f1e2f8;
     --shadow: 0 1px 2px rgba(33, 29, 24, .06), 0 2px 8px rgba(33, 29, 24, .05);
     --radius-sm: 10px;
     --radius-md: 16px;
@@ -49,6 +63,20 @@
     --success-container: #1a3d28;
     --warning: #d9a85c;
     --warning-container: #4a3512;
+    --info: #8dc2f2;
+    --info-container: #163654;
+    --pending: #f2ad78;
+    --pending-container: #5c2f0f;
+    --neutral: #c9c2b6;
+    --neutral-container: #3a352e;
+    --cat-technical: #c3b6ef;
+    --cat-technical-container: #362a5e;
+    --cat-warranty: #7fd8cb;
+    --cat-warranty-container: #0f3a35;
+    --cat-billing: #f5a8cd;
+    --cat-billing-container: #5c1739;
+    --cat-product: #dcaef0;
+    --cat-product-container: #4a2860;
     --shadow: 0 1px 3px rgba(0, 0, 0, .4);
   }
   @media (prefers-color-scheme: dark) {
@@ -61,6 +89,9 @@
       --outline: #8f8677; --outline-variant: #4a433a; --error: #ffb4a3;
       --error-container: #6b2318; --success: #8fd4a8; --success-container: #1a3d28;
       --warning: #d9a85c; --warning-container: #4a3512; --shadow: 0 1px 3px rgba(0,0,0,.4);
+      --info: #8dc2f2; --info-container: #163654; --pending: #f2ad78; --pending-container: #5c2f0f; --neutral: #c9c2b6; --neutral-container: #3a352e;
+      --cat-technical: #c3b6ef; --cat-technical-container: #362a5e; --cat-warranty: #7fd8cb; --cat-warranty-container: #0f3a35;
+      --cat-billing: #f5a8cd; --cat-billing-container: #5c1739; --cat-product: #dcaef0; --cat-product-container: #4a2860;
     }
   }
   * { box-sizing: border-box; }
@@ -158,6 +189,45 @@
   .chip[data-tone="error"] { color: var(--error); background: var(--error-container); }
   .chip[data-tone="success"] { color: var(--success); background: var(--success-container); }
   .chip[data-tone="warning"] { color: var(--warning); background: var(--warning-container); }
+  /* Status: traffic-light-ish scale (blue=new, amber=in progress, orange=waiting, green=resolved, gray=done/void) */
+  .chip[data-value="NEW"] { color: var(--info); background: var(--info-container); }
+  .chip[data-value="OPEN"] { color: var(--warning); background: var(--warning-container); }
+  .chip[data-value="PENDING_CUSTOMER"] { color: var(--pending); background: var(--pending-container); }
+  .chip[data-value="RESOLVED"] { color: var(--success); background: var(--success-container); }
+  .chip[data-value="CLOSED"] { color: var(--neutral); background: var(--neutral-container); }
+  .chip[data-value="VOID"] { color: var(--neutral); background: var(--neutral-container); }
+  /* Priority: classic green -> amber -> orange -> red escalation */
+  .chip[data-value="LOW"] { color: var(--success); background: var(--success-container); }
+  .chip[data-value="NORMAL"] { color: var(--warning); background: var(--warning-container); }
+  .chip[data-value="HIGH"] { color: var(--pending); background: var(--pending-container); }
+  .chip[data-value="CRITICAL"] { color: var(--error); background: var(--error-container); }
+  /* Category: distinct hues, not urgency-based */
+  .chip[data-value="GENERAL"] { color: var(--neutral); background: var(--neutral-container); }
+  .chip[data-value="TECHNICAL"] { color: var(--cat-technical); background: var(--cat-technical-container); }
+  .chip[data-value="WARRANTY"] { color: var(--cat-warranty); background: var(--cat-warranty-container); }
+  .chip[data-value="SHIPPING"] { color: var(--info); background: var(--info-container); }
+  .chip[data-value="BILLING"] { color: var(--cat-billing); background: var(--cat-billing-container); }
+  .chip[data-value="PRODUCT"] { color: var(--cat-product); background: var(--cat-product-container); }
+  .chip[data-value="OTHER"] { color: var(--neutral); background: var(--neutral-container); }
+  /* Same palette applied to <select> controls, driven by a data-value the app sets to match the chosen option */
+  select.color-coded { font-weight: 800; border-width: 2px; }
+  select.color-coded[data-value="NEW"] { color: var(--info); background: var(--info-container); border-color: var(--info); }
+  select.color-coded[data-value="OPEN"] { color: var(--warning); background: var(--warning-container); border-color: var(--warning); }
+  select.color-coded[data-value="PENDING_CUSTOMER"] { color: var(--pending); background: var(--pending-container); border-color: var(--pending); }
+  select.color-coded[data-value="RESOLVED"] { color: var(--success); background: var(--success-container); border-color: var(--success); }
+  select.color-coded[data-value="CLOSED"] { color: var(--neutral); background: var(--neutral-container); border-color: var(--neutral); }
+  select.color-coded[data-value="VOID"] { color: var(--neutral); background: var(--neutral-container); border-color: var(--neutral); }
+  select.color-coded[data-value="LOW"] { color: var(--success); background: var(--success-container); border-color: var(--success); }
+  select.color-coded[data-value="NORMAL"] { color: var(--warning); background: var(--warning-container); border-color: var(--warning); }
+  select.color-coded[data-value="HIGH"] { color: var(--pending); background: var(--pending-container); border-color: var(--pending); }
+  select.color-coded[data-value="CRITICAL"] { color: var(--error); background: var(--error-container); border-color: var(--error); }
+  select.color-coded[data-value="GENERAL"] { color: var(--neutral); background: var(--neutral-container); border-color: var(--neutral); }
+  select.color-coded[data-value="TECHNICAL"] { color: var(--cat-technical); background: var(--cat-technical-container); border-color: var(--cat-technical); }
+  select.color-coded[data-value="WARRANTY"] { color: var(--cat-warranty); background: var(--cat-warranty-container); border-color: var(--cat-warranty); }
+  select.color-coded[data-value="SHIPPING"] { color: var(--info); background: var(--info-container); border-color: var(--info); }
+  select.color-coded[data-value="BILLING"] { color: var(--cat-billing); background: var(--cat-billing-container); border-color: var(--cat-billing); }
+  select.color-coded[data-value="PRODUCT"] { color: var(--cat-product); background: var(--cat-product-container); border-color: var(--cat-product); }
+  select.color-coded[data-value="OTHER"] { color: var(--neutral); background: var(--neutral-container); border-color: var(--neutral); }
   .count-badge { padding: 6px 12px; border-radius: 16px; background: var(--surface-container-high); font-size: 13px; }
   .detail-panel { position: sticky; top: 88px; max-height: calc(100vh - 112px); overflow: auto; }
   .detail-header { padding: 22px; border-bottom: 1px solid var(--outline-variant); }

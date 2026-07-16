@@ -143,6 +143,7 @@
     const span = document.createElement('span');
     span.className = 'chip';
     span.textContent = ENUM_LABELS[value] || value || '—';
+    span.dataset.value = String(value || '').toUpperCase();
     if (tone) span.dataset.tone = tone;
     return span;
   }
