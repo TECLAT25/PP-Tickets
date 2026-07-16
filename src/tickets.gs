@@ -266,6 +266,7 @@ class TicketManager {
       shippingRecipientLastName: String(data.shippingRecipientLastName || ''),
       shippingRecipientCountry: String(data.shippingRecipientCountry || ''),
       shippingRecipientPostalCode: String(data.shippingRecipientPostalCode || ''),
+      shippingRecipientCity: String(data.shippingRecipientCity || ''),
       notes: String(data.notes || ''),
       detectedErrors: String(data.detectedErrors || ''),
       detectedSolutions: String(data.detectedSolutions || ''),
@@ -361,7 +362,7 @@ class TicketManager {
     const changes = {updatedAt: this.clock_(), version: this.version_};
     ['shippingAddress', 'shippingRecipient', 'shippingRecipientPhone',
       'shippingRecipientFirstName', 'shippingRecipientLastName',
-      'shippingRecipientCountry', 'shippingRecipientPostalCode'].forEach(function(field) {
+      'shippingRecipientCountry', 'shippingRecipientPostalCode', 'shippingRecipientCity'].forEach(function(field) {
       if (Object.prototype.hasOwnProperty.call(data, field)) {
         changes[field] = String(data[field] || '').trim();
       }
@@ -431,7 +432,7 @@ class TicketManager {
     }
     ['shippingAddress', 'shippingRecipient', 'shippingRecipientPhone',
       'shippingRecipientFirstName', 'shippingRecipientLastName',
-      'shippingRecipientCountry', 'shippingRecipientPostalCode'].forEach(function(field) {
+      'shippingRecipientCountry', 'shippingRecipientPostalCode', 'shippingRecipientCity'].forEach(function(field) {
       if (Object.prototype.hasOwnProperty.call(data, field)) {
         updates[field] = String(data[field] || '').trim();
       }

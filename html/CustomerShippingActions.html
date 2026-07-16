@@ -45,6 +45,7 @@
       if (fillIfEmpty('cs-last-name', extracted.lastName)) filled += 1;
       if (fillIfEmpty('cs-phone', extracted.phone)) filled += 1;
       if (fillIfEmpty('cs-postal-code', extracted.postalCode)) filled += 1;
+      if (fillIfEmpty('cs-city', extracted.city)) filled += 1;
       if (fillIfEmpty('cs-country', extracted.country)) filled += 1;
       if (fillIfEmpty('cs-address', extracted.address)) filled += 1;
       if (fillIfEmpty('cs-shipping-address', extracted.shippingAddress)) filled += 1;
@@ -53,6 +54,7 @@
       if (fillIfEmpty('cs-recipient-phone', extracted.shippingRecipientPhone)) filled += 1;
       if (fillIfEmpty('cs-recipient-country', extracted.shippingRecipientCountry)) filled += 1;
       if (fillIfEmpty('cs-recipient-postal-code', extracted.shippingRecipientPostalCode)) filled += 1;
+      if (fillIfEmpty('cs-recipient-city', extracted.shippingRecipientCity)) filled += 1;
       if (extracted.serialNumber && fillIfEmpty('ta-serial-number', extracted.serialNumber)) filled += 1;
       if (extracted.orderNumber && fillIfEmpty('ta-order-number', extracted.orderNumber)) filled += 1;
 
@@ -162,6 +164,7 @@
     wrap.appendChild(createField('cs-address', 'Dirección', customer.address, 'Calle, ciudad, código postal', true));
     wrap.appendChild(createField('cs-country', 'País', customer.country, 'España'));
     wrap.appendChild(createField('cs-postal-code', 'Código postal', customer.postalCode, '08001'));
+    wrap.appendChild(createField('cs-city', 'Población', customer.city, 'Madrid'));
 
     wrap.appendChild(sectionLabel('Envío'));
     wrap.appendChild(createField('cs-recipient-first-name', 'Nombre del destinatario', ticket.shippingRecipientFirstName, 'Quién recibe el paquete'));
@@ -170,6 +173,7 @@
     wrap.appendChild(createField('cs-shipping-address', 'Dirección de envío', ticket.shippingAddress, 'Si es distinta de la dirección del cliente', true));
     wrap.appendChild(createField('cs-recipient-country', 'País del destinatario', ticket.shippingRecipientCountry, 'España'));
     wrap.appendChild(createField('cs-recipient-postal-code', 'Código postal del destinatario', ticket.shippingRecipientPostalCode, '08001'));
+    wrap.appendChild(createField('cs-recipient-city', 'Población del destinatario', ticket.shippingRecipientCity, 'Madrid'));
 
     header.appendChild(wrap);
   }

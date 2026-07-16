@@ -105,9 +105,10 @@
           '<label class="new-ticket-field"><span>Teléfono</span><input id="nt-phone" type="text" placeholder="+34 600 000 000"></label>' +
         '</div>' +
         '<label class="new-ticket-field wide"><span>Dirección</span><input id="nt-address" type="text" placeholder="Calle, ciudad, código postal"></label>' +
-        '<div class="new-ticket-row cols-2">' +
+        '<div class="new-ticket-row">' +
           '<label class="new-ticket-field"><span>País</span><input id="nt-country" type="text" placeholder="España"></label>' +
           '<label class="new-ticket-field"><span>Código postal</span><input id="nt-postal-code" type="text" placeholder="08001"></label>' +
+          '<label class="new-ticket-field"><span>Población</span><input id="nt-city" type="text" placeholder="Madrid"></label>' +
         '</div>' +
 
         '<div class="new-ticket-section-label">Envío</div>' +
@@ -117,9 +118,10 @@
           '<label class="new-ticket-field"><span>Teléfono del destinatario</span><input id="nt-recipient-phone" type="text" placeholder="Teléfono de contacto"></label>' +
         '</div>' +
         '<label class="new-ticket-field wide"><span>Dirección de envío</span><input id="nt-shipping-address" type="text" placeholder="Si es distinta de la dirección del cliente"></label>' +
-        '<div class="new-ticket-row cols-2">' +
+        '<div class="new-ticket-row">' +
           '<label class="new-ticket-field"><span>País del destinatario</span><input id="nt-recipient-country" type="text" placeholder="España"></label>' +
           '<label class="new-ticket-field"><span>Código postal del destinatario</span><input id="nt-recipient-postal-code" type="text" placeholder="08001"></label>' +
+          '<label class="new-ticket-field"><span>Población del destinatario</span><input id="nt-recipient-city" type="text" placeholder="Madrid"></label>' +
         '</div>' +
 
         '<div class="new-ticket-actions">' +
@@ -157,6 +159,7 @@
           shippingRecipientPhone: val('nt-recipient-phone'),
           shippingRecipientCountry: val('nt-recipient-country'),
           shippingRecipientPostalCode: val('nt-recipient-postal-code'),
+          shippingRecipientCity: val('nt-recipient-city'),
           orderNumber: val('nt-order-number'),
           serialNumber: val('nt-serial-number')
         }));
@@ -167,14 +170,16 @@
         const address = val('nt-address');
         const country = val('nt-country');
         const postalCode = val('nt-postal-code');
-        if (ticketId && (firstName || lastName || phone || address || country || postalCode)) {
+        const city = val('nt-city');
+        if (ticketId && (firstName || lastName || phone || address || country || postalCode || city)) {
           await unwrap(await callServer('updateUiCustomerForTicket', ticketId, {
             firstName: firstName,
             lastName: lastName,
             phone: phone,
             address: address,
             country: country,
-            postalCode: postalCode
+            postalCode: postalCode,
+            city: city
           }));
         }
         closeDialog(backdrop);

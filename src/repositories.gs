@@ -29,6 +29,21 @@ class SheetTicketRepository {
   findById(id) { return this.byId_[String(id)] || null; }
   findByThreadId(threadId) { return this.byThreadId_[String(threadId)] || null; }
 
+  /**
+   * Permanently removes a ticket row. Used when merging tickets — the
+   * merged-away ticket's messages/data have already been moved elsewhere,
+   * so the empty row is deleted rather than left behind with any status.
+   * @param {string} id
+   * @return {boolean} true if a row was deleted
+   */
+  delete(id) {
+    const ticket = this.findById(id);
+    if (!ticket || !ticket.rowNumber) return false;
+    this.sheet_.deleteRow(ticket.rowNumber);
+    this.reload_();
+    return true;
+  }
+
   listAll() {
     if (this.sheet_.getLastRow() <= 1) return [];
     return this.sheet_.getRange(2, 1, this.sheet_.getLastRow() - 1, this.headers_.length)
@@ -72,7 +87,7 @@ class SheetTicketRepository {
       'assignedTo', 'updatedAt', 'lastMessageAt', 'slaDueAt', 'driveFolderId', 'tags', 'version',
       'shippingAddress', 'shippingRecipient', 'shippingRecipientPhone',
       'shippingRecipientFirstName', 'shippingRecipientLastName',
-      'shippingRecipientCountry', 'shippingRecipientPostalCode', 'notes', 'detectedErrors', 'detectedSolutions', 'orderNumber', 'serialNumber',
+      'shippingRecipientCountry', 'shippingRecipientPostalCode', 'shippingRecipientCity', 'notes', 'detectedErrors', 'detectedSolutions', 'orderNumber', 'serialNumber',
       'statusChangedAt', 'priorityChangedAt', 'categoryChangedAt'];
     SheetTicketRepository.fields_().forEach(function(mapping) {
       if (allowed.indexOf(mapping.field) !== -1 && Object.prototype.hasOwnProperty.call(changes, mapping.field)) {
@@ -166,7 +181,7 @@ class SheetTicketRepository {
     ['id', 'status', 'priority', 'category', 'subject', 'customerId', 'customerEmail', 'threadId', 'assignedTo', 'driveFolderId', 'tags', 'version',
       'shippingAddress', 'shippingRecipient', 'shippingRecipientPhone',
       'shippingRecipientFirstName', 'shippingRecipientLastName',
-      'shippingRecipientCountry', 'shippingRecipientPostalCode', 'notes', 'detectedErrors', 'detectedSolutions', 'orderNumber', 'serialNumber'].forEach(function(field) {
+      'shippingRecipientCountry', 'shippingRecipientPostalCode', 'shippingRecipientCity', 'notes', 'detectedErrors', 'detectedSolutions', 'orderNumber', 'serialNumber'].forEach(function(field) {
       ticket[field] = String(ticket[field] || '');
     });
     return ticket;
@@ -187,7 +202,7 @@ class SheetTicketRepository {
       {field: 'driveFolderId', header: 'Drive Folder ID'}, {field: 'tags', header: 'Tags'}, {field: 'version', header: 'Version'}, {field: 'category', header: 'Category'},
       {field: 'shippingAddress', header: 'Shipping Address'}, {field: 'shippingRecipient', header: 'Shipping Recipient'}, {field: 'shippingRecipientPhone', header: 'Shipping Recipient Phone'},
       {field: 'shippingRecipientFirstName', header: 'Shipping Recipient First Name'}, {field: 'shippingRecipientLastName', header: 'Shipping Recipient Last Name'},
-      {field: 'shippingRecipientCountry', header: 'Shipping Recipient Country'}, {field: 'shippingRecipientPostalCode', header: 'Shipping Recipient Postal Code'},
+      {field: 'shippingRecipientCountry', header: 'Shipping Recipient Country'}, {field: 'shippingRecipientPostalCode', header: 'Shipping Recipient Postal Code'}, {field: 'shippingRecipientCity', header: 'Shipping Recipient City'},
       {field: 'notes', header: 'Notes'}, {field: 'detectedErrors', header: 'Detected Errors'}, {field: 'detectedSolutions', header: 'Detected Solutions'}, {field: 'orderNumber', header: 'Order Number'}, {field: 'serialNumber', header: 'Serial Number'},
       {field: 'statusChangedAt', header: 'Status Changed At'}, {field: 'priorityChangedAt', header: 'Priority Changed At'}, {field: 'categoryChangedAt', header: 'Category Changed At'}
     ];

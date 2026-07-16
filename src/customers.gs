@@ -72,6 +72,7 @@ class SheetCustomerRepository {
         address: data.address || existing.address,
         country: data.country || existing.country,
         postalCode: data.postalCode || existing.postalCode,
+        city: data.city || existing.city,
         updatedAt: new Date()
       };
       return this.update(existing.id, changes);
@@ -92,7 +93,8 @@ class SheetCustomerRepository {
       lastName: String(data.lastName || '').trim(),
       address: String(data.address || '').trim(),
       country: String(data.country || '').trim(),
-      postalCode: String(data.postalCode || '').trim()
+      postalCode: String(data.postalCode || '').trim(),
+      city: String(data.city || '').trim()
     };
     const row = this.emptyRow_();
     SheetCustomerRepository.fields_().forEach(function(mapping) {
@@ -114,7 +116,7 @@ class SheetCustomerRepository {
       throw new AppError('Customer not found: ' + customerId, 'CUSTOMER_NOT_FOUND', {customerId: customerId});
     }
     const row = this.sheet_.getRange(customer.rowNumber, 1, 1, this.headers_.length).getValues()[0];
-    const allowed = ['email', 'name', 'phone', 'locale', 'company', 'updatedAt', 'notes', 'firstName', 'lastName', 'address', 'country', 'postalCode'];
+    const allowed = ['email', 'name', 'phone', 'locale', 'company', 'updatedAt', 'notes', 'firstName', 'lastName', 'address', 'country', 'postalCode', 'city'];
     SheetCustomerRepository.fields_().forEach(function(mapping) {
       if (allowed.indexOf(mapping.field) !== -1 &&
           Object.prototype.hasOwnProperty.call(changes, mapping.field)) {
@@ -140,7 +142,7 @@ class SheetCustomerRepository {
       const index = this.headerIndex_[mapping.header];
       customer[mapping.field] = index == null ? '' : row[index];
     }, this);
-    ['id', 'email', 'name', 'phone', 'locale', 'company', 'notes', 'firstName', 'lastName', 'address', 'country', 'postalCode'].forEach(function(field) {
+    ['id', 'email', 'name', 'phone', 'locale', 'company', 'notes', 'firstName', 'lastName', 'address', 'country', 'postalCode', 'city'].forEach(function(field) {
       customer[field] = String(customer[field] || '');
     });
     return customer;
@@ -173,7 +175,8 @@ class SheetCustomerRepository {
       {field: 'lastName', header: 'Last Name'},
       {field: 'address', header: 'Address'},
       {field: 'country', header: 'Country'},
-      {field: 'postalCode', header: 'Postal Code'}
+      {field: 'postalCode', header: 'Postal Code'},
+      {field: 'city', header: 'City'}
     ];
   }
 }

@@ -153,8 +153,8 @@ function saveUiTicketForm(ticketId, payload) {
     const ticketFieldNames = ['status', 'priority', 'category', 'assignedTo', 'tags', 'notes', 'detectedErrors', 'detectedSolutions', 'orderNumber', 'serialNumber',
       'shippingAddress', 'shippingRecipient', 'shippingRecipientPhone',
       'shippingRecipientFirstName', 'shippingRecipientLastName',
-      'shippingRecipientCountry', 'shippingRecipientPostalCode'];
-    const customerFieldNames = ['firstName', 'lastName', 'phone', 'address', 'country', 'postalCode'];
+      'shippingRecipientCountry', 'shippingRecipientPostalCode', 'shippingRecipientCity'];
+    const customerFieldNames = ['firstName', 'lastName', 'phone', 'address', 'country', 'postalCode', 'city'];
 
     const ticketChanges = {};
     ticketFieldNames.forEach(function(field) {
@@ -350,8 +350,8 @@ function getUiTicketStatistics() {
         byStatus: metrics.byStatus,
         byPriority: metrics.byPriority,
         byCategory: metrics.byCategory,
-        byError: countCommaListValues_(tickets, 'detectedErrors'),
-        bySolution: countCommaListValues_(tickets, 'detectedSolutions'),
+        byError: countCommaListValues_(tickets, 'detectedErrors', buildCatalogLabelMap_(APP.SHEETS.ERRORS)),
+        bySolution: countCommaListValues_(tickets, 'detectedSolutions', buildCatalogLabelMap_(APP.SHEETS.SOLUTIONS)),
         customerCount: customerCount,
         avgResolutionHours: timing.avgResolutionHours,
         avgOpenHours: timing.avgOpenHours,
@@ -436,16 +436,36 @@ function calculateTicketTiming_(tickets, now) {
  * @return {Object} map of value -> count
  * @private
  */
-function countCommaListValues_(tickets, field) {
+function countCommaListValues_(tickets, field, labelMap) {
   const counts = {};
   tickets.forEach(function(ticket) {
     String(ticket[field] || '').split(',').forEach(function(value) {
       const trimmed = value.trim();
       if (!trimmed) return;
-      counts[trimmed] = (counts[trimmed] || 0) + 1;
+      const atIndex = trimmed.lastIndexOf('@');
+      const code = atIndex === -1 ? trimmed : trimmed.slice(0, atIndex);
+      const label = (labelMap && labelMap[code]) ? labelMap[code] : code;
+      counts[label] = (counts[label] || 0) + 1;
     });
   });
   return counts;
+}
+
+/** @return {Object} map of code -> description for a catalog sheet @private */
+function buildCatalogLabelMap_(sheetName) {
+  const map = {};
+  try {
+    const sheet = AppConfig.getSheet(sheetName);
+    if (sheet.getLastRow() <= 1) return map;
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getDisplayValues().forEach(function(row) {
+      const code = String(row[0] || '').trim();
+      const description = String(row[1] || '').trim();
+      if (code) map[code] = description || code;
+    });
+  } catch (error) {
+    // Catalog sheet unavailable — counts will fall back to raw codes.
+  }
+  return map;
 }
 
 /**

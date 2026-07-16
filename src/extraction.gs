@@ -26,13 +26,16 @@ class MessageFieldExtractor {
     const shippingMarker = MessageFieldExtractor.SHIPPING_MARKER_.exec(body);
     const bodyBeforeShipping = shippingMarker ? bodyWithoutSerial.slice(0, shippingMarker.index) : bodyWithoutSerial;
     const shipping = MessageFieldExtractor.extractShippingBlock_(body);
+    const customerPostalCode = MessageFieldExtractor.extractPostalCode_(bodyBeforeShipping);
+    const shippingPostalCode = shipping.address ? MessageFieldExtractor.extractPostalCode_(shipping.address) : '';
     return {
       firstName: name.firstName,
       lastName: name.lastName,
       phone: MessageFieldExtractor.extractPhone_(bodyBeforeShipping),
-      postalCode: MessageFieldExtractor.extractPostalCode_(bodyBeforeShipping),
+      postalCode: customerPostalCode,
       country: MessageFieldExtractor.extractCountry_(body, senderEmail),
       address: MessageFieldExtractor.extractAddress_(bodyBeforeShipping),
+      city: MessageFieldExtractor.extractCity_(bodyBeforeShipping, customerPostalCode),
       serialNumber: serialNumber,
       orderNumber: orderNumber,
       shippingRecipientFirstName: shipping.firstName,
@@ -40,7 +43,8 @@ class MessageFieldExtractor {
       shippingAddress: shipping.address,
       shippingRecipientPhone: shipping.phone,
       shippingRecipientCountry: shipping.address ? MessageFieldExtractor.extractCountry_(shipping.address, '') : '',
-      shippingRecipientPostalCode: shipping.address ? MessageFieldExtractor.extractPostalCode_(shipping.address) : ''
+      shippingRecipientPostalCode: shippingPostalCode,
+      shippingRecipientCity: shipping.address ? MessageFieldExtractor.extractCity_(shipping.address, shippingPostalCode) : ''
     };
   }
 
@@ -223,37 +227,37 @@ class MessageFieldExtractor {
   static extractCountry_(text, email) {
     const countries = {
       'spain': 'España', 'españa': 'España', 'espana': 'España',
-      'united kingdom': 'United Kingdom', 'uk': 'United Kingdom', 'england': 'United Kingdom', 'great britain': 'United Kingdom',
-      'france': 'France', 'francia': 'France',
-      'germany': 'Deutschland', 'deutschland': 'Deutschland', 'alemania': 'Deutschland',
+      'united kingdom': 'Reino Unido', 'uk': 'Reino Unido', 'england': 'Reino Unido', 'great britain': 'Reino Unido', 'reino unido': 'Reino Unido',
+      'france': 'Francia', 'francia': 'Francia',
+      'germany': 'Alemania', 'deutschland': 'Alemania', 'alemania': 'Alemania',
       'italy': 'Italia', 'italia': 'Italia',
       'portugal': 'Portugal',
-      'netherlands': 'Nederland', 'nederland': 'Nederland', 'holanda': 'Nederland', 'holland': 'Nederland',
-      'poland': 'Polska', 'polska': 'Polska', 'polonia': 'Polska',
-      'sweden': 'Sverige', 'sverige': 'Sverige', 'suecia': 'Sverige',
-      'japan': '日本', '日本': '日本',
-      'korea': '대한민국', '대한민국': '대한민국', 'south korea': '대한민국',
-      'belgium': 'België', 'belgique': 'België', 'bélgica': 'België',
-      'ireland': 'Ireland', 'irlanda': 'Ireland',
-      'austria': 'Österreich', 'österreich': 'Österreich',
-      'switzerland': 'Schweiz', 'suiza': 'Schweiz',
-      'denmark': 'Danmark', 'dinamarca': 'Danmark',
-      'norway': 'Norge', 'noruega': 'Norge',
-      'finland': 'Suomi', 'finlandia': 'Suomi',
-      'united states': 'United States', 'usa': 'United States', 'estados unidos': 'United States',
+      'netherlands': 'Países Bajos', 'nederland': 'Países Bajos', 'holanda': 'Países Bajos', 'holland': 'Países Bajos', 'países bajos': 'Países Bajos',
+      'poland': 'Polonia', 'polska': 'Polonia', 'polonia': 'Polonia',
+      'sweden': 'Suecia', 'sverige': 'Suecia', 'suecia': 'Suecia',
+      'japan': 'Japón', '日本': 'Japón', 'japon': 'Japón', 'japón': 'Japón',
+      'korea': 'Corea del Sur', '대한민국': 'Corea del Sur', 'south korea': 'Corea del Sur', 'corea del sur': 'Corea del Sur',
+      'belgium': 'Bélgica', 'belgique': 'Bélgica', 'bélgica': 'Bélgica', 'belgica': 'Bélgica',
+      'ireland': 'Irlanda', 'irlanda': 'Irlanda',
+      'austria': 'Austria', 'österreich': 'Austria',
+      'switzerland': 'Suiza', 'suiza': 'Suiza',
+      'denmark': 'Dinamarca', 'dinamarca': 'Dinamarca',
+      'norway': 'Noruega', 'noruega': 'Noruega',
+      'finland': 'Finlandia', 'finlandia': 'Finlandia',
+      'united states': 'Estados Unidos', 'usa': 'Estados Unidos', 'estados unidos': 'Estados Unidos',
       'mexico': 'México', 'méxico': 'México',
       'argentina': 'Argentina',
       'brazil': 'Brasil', 'brasil': 'Brasil',
-      'canada': 'Canada', 'canadá': 'Canada',
-      'greece': 'Ελλάδα', 'grecia': 'Ελλάδα',
-      'czech republic': 'Česko', 'czechia': 'Česko', 'republica checa': 'Česko',
-      'hungary': 'Magyarország', 'hungria': 'Magyarország',
-      'romania': 'România', 'rumania': 'România',
-      'turkey': 'Türkiye', 'turquia': 'Türkiye',
-      'china': '中国',
+      'canada': 'Canadá', 'canadá': 'Canadá',
+      'greece': 'Grecia', 'grecia': 'Grecia',
+      'czech republic': 'República Checa', 'czechia': 'República Checa', 'republica checa': 'República Checa', 'república checa': 'República Checa',
+      'hungary': 'Hungría', 'hungria': 'Hungría', 'hungría': 'Hungría',
+      'romania': 'Rumanía', 'rumania': 'Rumanía', 'rumanía': 'Rumanía',
+      'turkey': 'Turquía', 'turquia': 'Turquía', 'turquía': 'Turquía',
+      'china': 'China',
       'india': 'India',
       'australia': 'Australia',
-      'new zealand': 'New Zealand', 'nueva zelanda': 'New Zealand'
+      'new zealand': 'Nueva Zelanda', 'nueva zelanda': 'Nueva Zelanda'
     };
     const lower = text.toLowerCase();
     const found = Object.keys(countries)
@@ -262,12 +266,12 @@ class MessageFieldExtractor {
     if (found.length) return countries[found[0]];
 
     const tldMap = {
-      es: 'España', uk: 'United Kingdom', fr: 'France', de: 'Deutschland', it: 'Italia',
-      pt: 'Portugal', nl: 'Nederland', pl: 'Polska', se: 'Sverige', jp: '日本', kr: '대한민국',
-      be: 'België', ie: 'Ireland', at: 'Österreich', ch: 'Schweiz', dk: 'Danmark', no: 'Norge',
-      fi: 'Suomi', mx: 'México', ar: 'Argentina', br: 'Brasil', ca: 'Canada', gr: 'Ελλάδα',
-      cz: 'Česko', hu: 'Magyarország', ro: 'România', tr: 'Türkiye', cn: '中国', in: 'India',
-      au: 'Australia', nz: 'New Zealand'
+      es: 'España', uk: 'Reino Unido', fr: 'Francia', de: 'Alemania', it: 'Italia',
+      pt: 'Portugal', nl: 'Países Bajos', pl: 'Polonia', se: 'Suecia', jp: 'Japón', kr: 'Corea del Sur',
+      be: 'Bélgica', ie: 'Irlanda', at: 'Austria', ch: 'Suiza', dk: 'Dinamarca', no: 'Noruega',
+      fi: 'Finlandia', mx: 'México', ar: 'Argentina', br: 'Brasil', ca: 'Canadá', gr: 'Grecia',
+      cz: 'República Checa', hu: 'Hungría', ro: 'Rumanía', tr: 'Turquía', cn: 'China', in: 'India',
+      au: 'Australia', nz: 'Nueva Zelanda'
     };
     const domainMatch = String(email || '').match(/\.([a-z]{2})$/i);
     if (domainMatch) {
@@ -303,6 +307,27 @@ class MessageFieldExtractor {
       }
     }
     return '';
+  }
+
+  /**
+   * Best-effort city/town extraction: looks for the text immediately
+   * following the given postal code on the same line (a very common
+   * pattern: "Calle Mayor 5, 28013 Madrid"). Falls back to empty if no
+   * postal code was found or nothing meaningful follows it.
+   * @param {string} text
+   * @param {string} postalCode
+   * @return {string}
+   * @private
+   */
+  static extractCity_(text, postalCode) {
+    if (!postalCode) return '';
+    const escaped = postalCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = text.match(new RegExp(escaped + '\\s+([\\p{L}][\\p{L}\\s\\-\'.]{1,40})', 'u'));
+    if (!match) return '';
+    const city = match[1].split(/[,\n]/)[0].trim();
+    const otherFieldLine = /(tel[eé]fono|phone|telefon|num[eé]ro|e-?mail|pa[ií]s|country)/i;
+    if (!city || otherFieldLine.test(city)) return '';
+    return city;
   }
 
   /**
