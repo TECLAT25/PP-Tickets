@@ -1,0 +1,106 @@
+<script>
+(function () {
+  'use strict';
+
+  function callServer(functionName) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      const runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      runner[functionName].apply(runner, args);
+    });
+  }
+
+  function unwrap(response) {
+    if (!response || response.ok !== true) {
+      const error = response && response.error ? response.error : {};
+      throw new Error(error.message || 'El servidor devolvió una respuesta no válida.');
+    }
+    return response.data;
+  }
+
+  let colorMap = null;
+
+  function typeForValue(value) {
+    if (['NEW', 'OPEN', 'PENDING_CUSTOMER', 'RESOLVED', 'CLOSED', 'VOID'].indexOf(value) !== -1) return 'STATUS';
+    if (['LOW', 'NORMAL', 'HIGH', 'CRITICAL'].indexOf(value) !== -1) return 'PRIORITY';
+    if (['GENERAL', 'TECHNICAL', 'WARRANTY', 'SHIPPING', 'BILLING', 'PRODUCT', 'OTHER'].indexOf(value) !== -1) return 'CATEGORY';
+    return '';
+  }
+
+  // Picks black or white text for readable contrast against a given hex background.
+  function readableTextColor(hex) {
+    const clean = String(hex || '').replace('#', '');
+    if (clean.length !== 6) return '';
+    const r = parseInt(clean.substr(0, 2), 16);
+    const g = parseInt(clean.substr(2, 2), 16);
+    const b = parseInt(clean.substr(4, 2), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.6 ? '#1a1a1a' : '#ffffff';
+  }
+
+  function colorFor(value) {
+    if (!colorMap) return null;
+    const type = typeForValue(value);
+    if (!type || !colorMap[type]) return null;
+    return colorMap[type][value] || null;
+  }
+
+  function applyColors() {
+    if (!colorMap) return;
+
+    document.querySelectorAll('.chip[data-value]').forEach(function (chip) {
+      const bg = colorFor(chip.dataset.value);
+      if (!bg) return;
+      chip.style.backgroundColor = bg;
+      chip.style.color = readableTextColor(bg);
+    });
+
+    document.querySelectorAll('select.color-coded[data-value]').forEach(function (select) {
+      const bg = colorFor(select.dataset.value);
+      if (!bg) {
+        select.style.backgroundColor = '';
+        select.style.color = '';
+        select.style.borderColor = '';
+        return;
+      }
+      select.style.backgroundColor = bg;
+      select.style.color = readableTextColor(bg);
+      select.style.borderColor = bg;
+    });
+
+    document.querySelectorAll('.st-bar-fill[data-value]').forEach(function (bar) {
+      const bg = colorFor(bar.dataset.value);
+      if (bg) bar.style.backgroundColor = bg;
+    });
+  }
+
+  function start() {
+    callServer('getUiColorMap').then(unwrap).then(function (map) {
+      colorMap = map;
+      applyColors();
+    }).catch(function () {
+      // If this fails, the CSS defaults already in place still apply.
+    });
+
+    let pending = false;
+    const observer = new MutationObserver(function () {
+      if (pending) return;
+      pending = true;
+      window.setTimeout(function () {
+        pending = false;
+        applyColors();
+      }, 150);
+    });
+    observer.observe(document.body, {childList: true, subtree: true});
+
+    document.addEventListener('change', function (event) {
+      if (event.target && event.target.matches && event.target.matches('select.color-coded')) {
+        applyColors();
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>

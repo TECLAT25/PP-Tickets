@@ -575,3 +575,33 @@ function findUiRelatedTickets(ticketId) {
     return AppUtils.errorResponse(error);
   }
 }
+
+/**
+ * Reads the "Colors" sheet and returns each Status/Priority/Category
+ * value's color, taken from the background fill of its "Color" cell.
+ * The agent customizes colors just by repainting cells in Sheets.
+ * @return {{ok: boolean, data: {STATUS: Object, PRIORITY: Object, CATEGORY: Object}}|Object}
+ */
+function getUiColorMap() {
+  try {
+    const sheet = AppConfig.getSheet(APP.SHEETS.COLORS);
+    const map = {STATUS: {}, PRIORITY: {}, CATEGORY: {}};
+    if (sheet.getLastRow() <= 1) return {ok: true, data: map};
+
+    const rowCount = sheet.getLastRow() - 1;
+    const values = sheet.getRange(2, 1, rowCount, 2).getDisplayValues();
+    const backgrounds = sheet.getRange(2, 4, rowCount, 1).getBackgrounds();
+
+    values.forEach(function(row, index) {
+      const type = String(row[0] || '').trim().toUpperCase();
+      const value = String(row[1] || '').trim().toUpperCase();
+      const color = backgrounds[index][0];
+      if (!type || !value || !map[type]) return;
+      if (color && color !== '#ffffff') map[type][value] = color;
+    });
+
+    return {ok: true, data: map};
+  } catch (error) {
+    return AppUtils.errorResponse(error);
+  }
+}

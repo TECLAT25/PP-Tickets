@@ -19,6 +19,7 @@ const APP = Object.freeze({
     PRODUCTS: 'Products',
     TEMPLATES: 'Templates',
     SETTINGS: 'Settings',
+    COLORS: 'Colors',
     LOGS: 'Logs'
   }),
   LOG_LEVELS: Object.freeze({DEBUG: 'DEBUG', INFO: 'INFO', WARN: 'WARN', ERROR: 'ERROR'})
@@ -65,6 +66,9 @@ const SHEET_SCHEMAS = Object.freeze([
   Object.freeze({name: 'Settings', headers: Object.freeze([
     'Key', 'Value', 'Description', 'Updated At', 'Updated By'
   ]), color: '#5F6368'}),
+  Object.freeze({name: 'Colors', headers: Object.freeze([
+    'Type', 'Value', 'Label', 'Color'
+  ]), color: '#F439A0'}),
   Object.freeze({name: 'Logs', headers: Object.freeze([
     'Timestamp', 'Level', 'Message', 'Context JSON', 'Correlation ID', 'User', 'Version'
   ]), color: '#3C4043'})

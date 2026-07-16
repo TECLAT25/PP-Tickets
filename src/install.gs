@@ -21,6 +21,7 @@ class AppInstaller {
       });
       SpreadsheetApp.flush();
       AppInstaller.seedSettings_(spreadsheet);
+      AppInstaller.seedColors_(spreadsheet);
       AppInstaller.ensureDriveResources_();
       AppInstaller.ensureGmailResources_();
       AppInstaller.mergeDuplicateOpenTickets_();
@@ -125,6 +126,50 @@ class AppInstaller {
   }
 
   /** @param {GoogleAppsScript.Spreadsheet.Spreadsheet} spreadsheet @private */
+  /**
+   * One-time seed of the "Colors" sheet: one row per Status/Priority/
+   * Category value, with a default background color painted onto the
+   * "Color" cell. The app reads each cell's fill color at runtime, so the
+   * agent can change any value's color just by repainting that cell in
+   * Sheets — no code changes needed.
+   * @param {Spreadsheet} spreadsheet
+   * @private
+   */
+  static seedColors_(spreadsheet) {
+    const sheet = spreadsheet.getSheetByName(APP.SHEETS.COLORS);
+    const existing = sheet.getLastRow() > 1
+      ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getDisplayValues().map(function(row) { return row[0] + '|' + row[1]; })
+      : [];
+
+    const defaults = [
+      ['STATUS', 'NEW', 'Nuevo', '#dcecfa'],
+      ['STATUS', 'OPEN', 'Abierto', '#faf0dd'],
+      ['STATUS', 'PENDING_CUSTOMER', 'Esperando cliente', '#fce4d1'],
+      ['STATUS', 'RESOLVED', 'Resuelto', '#e3f3e8'],
+      ['STATUS', 'CLOSED', 'Cerrado', '#e6e0d6'],
+      ['STATUS', 'VOID', 'Nulo', '#e6e0d6'],
+      ['PRIORITY', 'LOW', 'Baja', '#e3f3e8'],
+      ['PRIORITY', 'NORMAL', 'Normal', '#faf0dd'],
+      ['PRIORITY', 'HIGH', 'Alta', '#fce4d1'],
+      ['PRIORITY', 'CRITICAL', 'Crítica', '#fbe7e2'],
+      ['CATEGORY', 'GENERAL', 'General', '#e6e0d6'],
+      ['CATEGORY', 'TECHNICAL', 'Técnico', '#e9e4f9'],
+      ['CATEGORY', 'WARRANTY', 'Garantía', '#d9f0ec'],
+      ['CATEGORY', 'SHIPPING', 'Envío', '#dcecfa'],
+      ['CATEGORY', 'BILLING', 'Facturación', '#fbdeeb'],
+      ['CATEGORY', 'PRODUCT', 'Producto', '#f1e2f8'],
+      ['CATEGORY', 'OTHER', 'Otro', '#e6e0d6']
+    ].filter(function(row) { return existing.indexOf(row[0] + '|' + row[1]) === -1; });
+
+    if (!defaults.length) return;
+
+    const startRow = sheet.getLastRow() + 1;
+    const values = defaults.map(function(row) { return [row[0], row[1], row[2], row[3]]; });
+    sheet.getRange(startRow, 1, values.length, 4).setValues(values);
+    const colorColumn = sheet.getRange(startRow, 4, values.length, 1);
+    colorColumn.setBackgrounds(defaults.map(function(row) { return [row[3]]; }));
+  }
+
   static seedSettings_(spreadsheet) {
     const sheet = spreadsheet.getSheetByName(APP.SHEETS.SETTINGS);
     const existingKeys = sheet.getLastRow() > 1 ?
@@ -142,34 +187,46 @@ class AppInstaller {
   }
 
   /**
-   * One-time fix for an earlier version of the merge step that incorrectly
-   * closed merged-away tickets automatically. Reopens any ticket that was
-   * force-closed that way (identified by the "Fusionado con" note this app
-   * itself writes), setting it back to OPEN so a human decides its real
-   * status. Runs only once (separate guard from the merge step itself).
+   * One-time fix for an earlier version of the merge step that left
+   * merged-away tickets behind (either force-closed, or reopened by a
+   * previous fix) instead of removing them. Deletes any ticket that has
+   * zero messages and a "Fusionado con" note — it's a redundant, empty
+   * artifact of an earlier merge, not a real ticket needing attention.
+   * Runs only once (separate guard from the merge step itself).
    * @private
    */
   static revertForcedTicketClosures_() {
     const properties = AppConfig.getProperties();
-    const flagKey = 'FORCED_CLOSURES_REVERTED_V1';
+    const flagKey = 'EMPTY_MERGED_TICKETS_DELETED_V1';
     if (properties.getProperty(flagKey)) return;
 
     try {
       const ticketRepo = new SheetTicketRepository();
-      const reverted = [];
-      ticketRepo.listAll().forEach(function(ticket) {
+      const messagesSheet = AppConfig.getSheet(APP.SHEETS.MESSAGES);
+      const messagesHeaders = messagesSheet.getRange(1, 1, 1, messagesSheet.getLastColumn()).getDisplayValues()[0];
+      const ticketIdCol = messagesHeaders.indexOf('Ticket ID') + 1;
+      const lastMessageRow = messagesSheet.getLastRow();
+      const messageTicketIds = lastMessageRow > 1
+        ? messagesSheet.getRange(2, ticketIdCol, lastMessageRow - 1, 1).getValues().map(function(row) { return String(row[0]); })
+        : [];
+
+      const toDelete = ticketRepo.listAll().filter(function(ticket) {
         const notes = String(ticket.notes || '');
-        if (ticket.status === 'CLOSED' && notes.indexOf('Fusionado con ') !== -1) {
-          ticketRepo.update(ticket.id, {status: 'OPEN', updatedAt: new Date()});
-          reverted.push(ticket.id);
-        }
+        if (notes.indexOf('Fusionado con ') === -1) return false;
+        return messageTicketIds.indexOf(ticket.id) === -1;
       });
-      AppLogger.info('Reverted tickets that an earlier version incorrectly auto-closed during merge.', {
-        count: reverted.length,
-        ticketIds: reverted.join(', ')
+
+      const deletedIds = [];
+      toDelete.forEach(function(ticket) {
+        if (ticketRepo.delete(ticket.id)) deletedIds.push(ticket.id);
+      });
+
+      AppLogger.info('Deleted empty tickets left behind by an earlier merge.', {
+        count: deletedIds.length,
+        ticketIds: deletedIds.join(', ')
       });
     } catch (error) {
-      AppLogger.error('Reverting forced ticket closures failed; will retry on next install().', {error: error.message});
+      AppLogger.error('Deleting empty merged tickets failed; will retry on next install().', {error: error.message});
       return;
     }
 
@@ -179,13 +236,15 @@ class AppInstaller {
   /**
    * One-time cleanup: merges any pre-existing duplicate non-closed tickets
    * per customer into a single ticket, moving their messages and combining
-   * notes/tags/errors/solutions. Runs only once ever (guarded by a script
-   * property), so re-running install() later is a no-op here.
+   * notes/tags/errors/solutions. The merged-away ticket rows are deleted
+   * (their content already lives in the kept ticket) — never closed, that
+   * decision stays with the agent. Runs only once ever (guarded by a
+   * script property), so re-running install() later is a no-op here.
    * @private
    */
   static mergeDuplicateOpenTickets_() {
     const properties = AppConfig.getProperties();
-    const flagKey = 'DUPLICATE_TICKETS_MERGED_V1';
+    const flagKey = 'DUPLICATE_TICKETS_MERGED_V2';
     if (properties.getProperty(flagKey)) return;
 
     try {
@@ -255,12 +314,9 @@ class AppInstaller {
           });
           primary = ticketRepo.update(primary.id, primaryUpdates);
 
-          ticketRepo.update(other.id, {
-            notes: (other.notes ? other.notes + '\n---\n' : '') + 'Fusionado con ' + primary.id,
-            updatedAt: new Date()
-          });
+          ticketRepo.delete(other.id);
 
-          mergedIds.push(other.id + ' (' + moved + ' mensajes)');
+          mergedIds.push(other.id + ' (' + moved + ' mensajes, ticket eliminado)');
           totalMerged += 1;
         });
 
