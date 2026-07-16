@@ -1,3 +1,13 @@
+﻿# fix-order-number-not-address.ps1
+# Arregla un fallo real: "My order number is 1167" se reconocia mal
+# como direccion/codigo postal en vez de numero de pedido, porque la
+# palabra "is" entre la etiqueta y el numero rompia el reconocimiento.
+$ErrorActionPreference = "Stop"
+$root = Get-Location
+$enc = New-Object System.Text.UTF8Encoding($false)
+
+Write-Host "Escribiendo src/extraction.gs..." -ForegroundColor Cyan
+$v0 = @'
 /**
  * Best-effort extraction of structured fields (name, phone, postal code,
  * country, street address) from email headers and free-text bodies. This
@@ -383,3 +393,13 @@ class MessageFieldExtractor {
       .map(function(item) { return item.code; });
   }
 }
+'@
+[System.IO.File]::WriteAllText((Join-Path $root "src\extraction.gs"), $v0, $enc)
+Write-Host "  [OK]" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "Verificando..." -ForegroundColor Cyan
+Select-String -Path src\extraction.gs -Pattern "otherKnownField"
+
+Write-Host ""
+Write-Host "Si salio arriba, ejecuta: npm test  y  npm run deploy" -ForegroundColor Cyan
